@@ -1,0 +1,21 @@
+{
+  "name": "listings",
+  "version": "1.0.0",
+  "main": "zillow.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.48.1",
+    "csv-parser": "^3.0.0",
+    "csv-writer": "^1.6.0",
+    "got-scraping": "^4.0.6",
+    "graceful-fs": "^4.2.11",
+    "node-fetch": "^3.3.2"
+  },
+  "type": "module"
+}
