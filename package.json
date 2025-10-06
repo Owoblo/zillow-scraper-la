@@ -1,21 +1,48 @@
 {
-  "name": "listings",
+  "name": "zillow-scraper",
   "version": "1.0.0",
   "main": "zillow.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node zillow.js",
+    "dev": "node zillow.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "scrape:all": "node scripts/run-all-regions.js",
+    "scrape:region": "node scripts/run-region.js",
+    "list-regions": "node scripts/list-regions.js",
+    "detect:all": "node detectSoldListings.js",
+    "detect:region": "node detectSoldListings.js",
+    "migrate": "node scripts/migrate-database.js",
+    "scrape:first-time": "node scripts/run-region-first-time.js",
+    "retry:failed": "node scripts/retry-failed-cities.js",
+    "recover:city": "node scripts/recover-city.js"
   },
-  "keywords": [],
+  "keywords": [
+    "zillow",
+    "scraper",
+    "real-estate",
+    "automation"
+  ],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Real-time Zillow listing scraper with email notifications and Supabase integration",
   "dependencies": {
     "@supabase/supabase-js": "^2.48.1",
+    "axios": "^1.7.9",
+    "cheerio": "^1.0.0",
     "csv-parser": "^3.0.0",
     "csv-writer": "^1.6.0",
+    "dotenv": "^17.2.3",
     "got-scraping": "^4.0.6",
     "graceful-fs": "^4.2.11",
-    "node-fetch": "^3.3.2"
+    "https-proxy-agent": "^7.0.6",
+    "node-fetch": "^3.3.2",
+    "nodemailer": "^6.9.8",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "uuid": "^12.0.0"
   },
-  "type": "module"
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }
