@@ -3,7 +3,7 @@ services:
   - type: cron
     name: zillow-scraper
     env: node
-    buildCommand: npm ci --legacy-peer-deps
+    buildCommand: npm install --legacy-peer-deps
     startCommand: npm run scrape:all
     schedule: "0 */12 * * *"  # Every 12 hours at minute 0
     envVars:
