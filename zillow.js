@@ -480,6 +480,10 @@ async function fetchPageWithRetries(area, page) {
   while (attempt < PAGE_RETRY_LIMIT) {
     attempt++;
     try {
+      // Add a small random delay to make requests more realistic
+      const randomDelay = Math.floor(Math.random() * 1000) + 500; // 500-1500ms
+      await sleep(randomDelay);
+      
       const listings = await fetchSearchPage(area, page); // your existing function
       // If Zillow returns HTML or empty due to a hiccup, treat as retryable
       if (!Array.isArray(listings)) throw new Error("Non-array listings");
@@ -492,7 +496,7 @@ async function fetchPageWithRetries(area, page) {
       await sleep(wait);
     }
   }
-  // Give up for now. We’ll try again in the sweep.
+  // Give up for now. We'll try again in the sweep.
   return null;
 }
 
@@ -1099,19 +1103,23 @@ async function fetchSearchPage(area, page) {
     headers: {
       "User-Agent":
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      accept: "*/*",
-      "accept-language": "en-US,en;q=0.9",
-      "content-type": "application/json",
-      priority: "u=1, i",
-      "sec-ch-ua":
-        '"Not/A)Brand";v="8", "Chromium";v="126", "Google Chrome";v="126"',
-      "sec-ch-ua-mobile": "?0",
-      "sec-ch-ua-platform": '"macOS"',
-      "sec-fetch-dest": "empty",
-      "sec-fetch-mode": "cors",
-      "sec-fetch-site": "same-origin",
-      Referer: "https://www.zillow.com/homes/",
-      "Referrer-Policy": "unsafe-url",
+      "Accept": "application/json, text/plain, */*",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept-Encoding": "gzip, deflate, br",
+      "Content-Type": "application/json",
+      "Origin": "https://www.zillow.com",
+      "Referer": "https://www.zillow.com/homes/",
+      "Sec-Fetch-Dest": "empty",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Site": "same-origin",
+      "Sec-Ch-Ua": '"Not/A)Brand";v="8", "Chromium";v="126", "Google Chrome";v="126"',
+      "Sec-Ch-Ua-Mobile": "?0",
+      "Sec-Ch-Ua-Platform": '"macOS"',
+      "Cache-Control": "no-cache",
+      "Pragma": "no-cache",
+      "DNT": "1",
+      "Connection": "keep-alive",
+      "Upgrade-Insecure-Requests": "1",
     },
     body: JSON.stringify({
       searchQueryState,
@@ -1122,14 +1130,18 @@ async function fetchSearchPage(area, page) {
 
   const text = await res.text();
   try {
-     if (text.trim().startsWith("<")) {
-  throw new Error("Got HTML instead of JSON");
-}
+    if (text.trim().startsWith("<")) {
+      console.log("Got HTML response, first 200 chars:", text.substring(0, 200));
+      throw new Error("Got HTML instead of JSON");
+    }
     const json = JSON.parse(text);
     const listings = json?.cat1?.searchResults?.listResults ?? [];
     return Array.isArray(listings) ? listings : [];
   } catch (e) {
     console.error("Page parse error:", e.message);
+    console.log("Response status:", res.status);
+    console.log("Response headers:", Object.fromEntries(res.headers.entries()));
+    console.log("Response text (first 500 chars):", text.substring(0, 500));
     return [];
   }
 }
