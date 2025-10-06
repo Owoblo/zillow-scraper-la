@@ -3,11 +3,11 @@ import fetch from "node-fetch";
 import dotenv from "dotenv";
 dotenv.config();
 
-// Decodo static dedicated IP configuration
+// Decodo static dedicated IP configuration with whitelisted IP
 const DECODO_STATIC_IP = {
   host: 'isp.decodo.com',
   port: 10001,
-  username: 'spob1kyjck',
+  username: 'user-spob1kyjck-ip-82.23.110.71',
   password: 'sma7j92aJikN~zIBc2'
 };
 
@@ -18,7 +18,8 @@ export function getDecodoProxyAgent() {
   return new HttpsProxyAgent({
     host: DECODO_STATIC_IP.host,
     port: DECODO_STATIC_IP.port,
-    auth: `${DECODO_STATIC_IP.username}:${DECODO_STATIC_IP.password}`,
+    username: DECODO_STATIC_IP.username,
+    password: DECODO_STATIC_IP.password,
   });
 }
 
@@ -27,12 +28,12 @@ export function getDecodoProxyUrl() {
   return `http://${DECODO_STATIC_IP.username}:${DECODO_STATIC_IP.password}@${DECODO_STATIC_IP.host}:${DECODO_STATIC_IP.port}`;
 }
 
-// Main proxy function - temporarily disabled for production due to proxy issues
+// Main proxy function - uses Decodo for production with correct whitelisted IP format
 export function getSmartProxyAgent() {
-  // Temporarily disable proxy for production due to Decodo proxy issues
+  // Use Decodo for production (Render deployment) with whitelisted IP
   if (process.env.NODE_ENV === 'production') {
-    console.log('🔄 Using NO PROXY for production (Decodo proxy temporarily disabled)');
-    return null; // No proxy
+    console.log('🔄 Using Decodo static IP with whitelisted IP for production');
+    return getDecodoProxyAgent();
   }
   
   // Fallback to original SmartProxy for local development
@@ -45,10 +46,10 @@ export function getSmartProxyAgent() {
 }
 
 export function getSmartProxyUrl() {
-  // Temporarily disable proxy for production due to Decodo proxy issues
+  // Use Decodo for production (Render deployment) with whitelisted IP
   if (process.env.NODE_ENV === 'production') {
-    console.log('🔄 Using NO PROXY URL for production (Decodo proxy temporarily disabled)');
-    return null; // No proxy
+    console.log('🔄 Using Decodo static IP URL with whitelisted IP for production');
+    return getDecodoProxyUrl();
   }
   
   // Fallback to original SmartProxy for local development
