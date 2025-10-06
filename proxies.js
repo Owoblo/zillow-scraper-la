@@ -13,8 +13,6 @@ const DECODO_STATIC_IP = {
 
 // Get Decodo static IP proxy agent
 export function getDecodoProxyAgent() {
-  console.log(`🔄 Using Decodo static IP: ${DECODO_STATIC_IP.host}:${DECODO_STATIC_IP.port}`);
-  
   return new HttpsProxyAgent({
     host: DECODO_STATIC_IP.host,
     port: DECODO_STATIC_IP.port,
@@ -32,7 +30,6 @@ export function getDecodoProxyUrl() {
 export function getSmartProxyAgent() {
   // Use Decodo for production (Render deployment) with whitelisted IP
   if (process.env.NODE_ENV === 'production') {
-    console.log('🔄 Using Decodo static IP with whitelisted IP for production');
     return getDecodoProxyAgent();
   }
   
@@ -48,7 +45,6 @@ export function getSmartProxyAgent() {
 export function getSmartProxyUrl() {
   // Use Decodo for production (Render deployment) with whitelisted IP
   if (process.env.NODE_ENV === 'production') {
-    console.log('🔄 Using Decodo static IP URL with whitelisted IP for production');
     return getDecodoProxyUrl();
   }
   
