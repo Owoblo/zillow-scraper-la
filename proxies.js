@@ -27,12 +27,12 @@ export function getDecodoProxyUrl() {
   return `http://${DECODO_STATIC_IP.username}:${DECODO_STATIC_IP.password}@${DECODO_STATIC_IP.host}:${DECODO_STATIC_IP.port}`;
 }
 
-// Main proxy function - uses Decodo for production, fallback for local
+// Main proxy function - temporarily disabled for production due to proxy issues
 export function getSmartProxyAgent() {
-  // Use Decodo for production (Render deployment)
+  // Temporarily disable proxy for production due to Decodo proxy issues
   if (process.env.NODE_ENV === 'production') {
-    console.log('🔄 Using Decodo static IP for production');
-    return getDecodoProxyAgent();
+    console.log('🔄 Using NO PROXY for production (Decodo proxy temporarily disabled)');
+    return null; // No proxy
   }
   
   // Fallback to original SmartProxy for local development
@@ -45,10 +45,10 @@ export function getSmartProxyAgent() {
 }
 
 export function getSmartProxyUrl() {
-  // Use Decodo for production (Render deployment)
+  // Temporarily disable proxy for production due to Decodo proxy issues
   if (process.env.NODE_ENV === 'production') {
-    console.log('🔄 Using Decodo static IP URL for production');
-    return getDecodoProxyUrl();
+    console.log('🔄 Using NO PROXY URL for production (Decodo proxy temporarily disabled)');
+    return null; // No proxy
   }
   
   // Fallback to original SmartProxy for local development
