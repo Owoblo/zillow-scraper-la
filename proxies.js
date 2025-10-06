@@ -1,6 +1,5 @@
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import fetch from "node-fetch";
-import { gotScraping } from "got-scraping";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -88,20 +87,11 @@ export function getStormProxyAgent() {
   return proxyAgent;
 }
 
-//uncomment to test them
+// Test function (uncomment to test)
 // (async () => {
 //   const fetchRes = await fetch("https://ip.smartproxy.com/json", {
 //     agent: getSmartProxyAgent(),
 //   });
 //   const fetchJson = await fetchRes.json();
 //   console.log("fetchJson", fetchJson);
-
-//   const gotScrapingRes = await gotScraping({
-//     url: "https://ipinfo.io/json",
-//     responseType: "json",
-//     proxyUrl: getSmartProxyUrl(),
-//   });
-//   console.log("gotScrapingRes.body", gotScrapingRes.body);
 // })();
-
-// run node proxies.js to test after uncommenting
