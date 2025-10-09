@@ -57,12 +57,14 @@ export async function sendScrapeNotification(results) {
     regionalResults,
     runDuration,
     timestamp,
-    cityDetails = [] // New: city-by-city breakdown
+    cityDetails = [], // New: city-by-city breakdown
+    failedCities = [] // New: failed cities list
   } = results;
 
   // Determine email subject
+  const failedCitiesText = failedCities.length > 0 ? ` (${failedCities.length} failed cities)` : '';
   const subject = success 
-    ? `✅ Zillow Scraper Success - ${totalListings} listings (${justListed} just-listed, ${soldListings} sold)`
+    ? `✅ Zillow Scraper Success - ${totalListings} listings (${justListed} just-listed, ${soldListings} sold)${failedCitiesText}`
     : `❌ Zillow Scraper Failed - ${error}`;
 
   // Create HTML email content
@@ -101,7 +103,8 @@ function createEmailHTML(results) {
     regionalResults,
     runDuration,
     timestamp,
-    cityDetails = []
+    cityDetails = [],
+    failedCities = []
   } = results;
 
   const statusColor = success ? '#28a745' : '#dc3545';
@@ -238,6 +241,18 @@ function createEmailHTML(results) {
             </div>
           ` : ''}
 
+          ${failedCities.length > 0 ? `
+            <h3>⚠️ Failed Cities (${failedCities.length})</h3>
+            <div class="error-box">
+              <p><strong>Cities that failed to scrape:</strong></p>
+              <ul>
+                ${failedCities.map(city => `<li>${city}</li>`).join('')}
+              </ul>
+              <p><strong>To retry failed cities:</strong></p>
+              <code>npm run retry:failed "${failedCities.join(',')}"</code>
+            </div>
+          ` : ''}
+
           <p><strong>Next run:</strong> ${new Date(Date.now() + 12 * 60 * 60 * 1000).toLocaleString()}</p>
         </div>
         
@@ -265,7 +280,8 @@ function createEmailText(results) {
     regionalResults,
     runDuration,
     timestamp,
-    cityDetails = []
+    cityDetails = [],
+    failedCities = []
   } = results;
 
   let text = `ZILLOW SCRAPER REPORT\n`;
@@ -316,6 +332,16 @@ function createEmailText(results) {
         text += `- ${region}: ${data.listings} listings from ${data.cities} cities\n`;
       });
       text += `\n`;
+    }
+
+    if (failedCities.length > 0) {
+      text += `FAILED CITIES (${failedCities.length}):\n`;
+      text += `========================\n`;
+      failedCities.forEach(city => {
+        text += `- ${city}\n`;
+      });
+      text += `\nTo retry failed cities:\n`;
+      text += `npm run retry:failed "${failedCities.join(',')}"\n\n`;
     }
   } else {
     text += `ERROR: ${error}\n\n`;

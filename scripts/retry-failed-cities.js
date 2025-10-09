@@ -5,7 +5,8 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { getSmartProxyAgent } from '../proxies.js';
-import { mapItemToRow, upsertListingsWithValidation } from '../scraper-improvements.js';
+import { mapItemToRow, upsertListingsWithValidation } from '../zillow.js';
+import { getAllCities } from '../config/regions.js';
 
 // Supabase configuration
 const supabaseUrl = 'https://idbyrtwdeeruiutoukct.supabase.co';
@@ -25,39 +26,21 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 // Generate unique run ID
 const runId = `retry-${Date.now()}`;
 
-// Failed cities configuration with exact Zillow coordinates
-const FAILED_CITIES = {
-  "Mississauga": {
-    mapBounds: {
-      north: 43.737325,
-      south: 43.474915,
-      east: -79.52296,
-      west: -79.810253
-    },
-    regionId: 792679,
-    regionName: "Greater Toronto Area"
-  },
-  "Markham": {
-    mapBounds: {
-      north: 43.946335631712174,
-      south: 43.81518110458399,
-      east: -79.06258629980469,
-      west: -79.53637170019532
-    },
-    regionId: 792840,
-    regionName: "Greater Toronto Area"
-  },
-  "Vaughan": {
-    mapBounds: {
-      north: 43.96822900411137,
-      south: 43.70572776600755,
-      east: -79.09200809960939,
-      west: -80.03957890039064
-    },
-    regionId: 792841,
-    regionName: "Greater Toronto Area"
-  }
-};
+// Get all available cities from regions configuration
+function getAvailableCities() {
+  const allCities = getAllCities();
+  const cityMap = {};
+  
+  allCities.forEach(city => {
+    cityMap[city.name] = {
+      mapBounds: city.mapBounds,
+      regionId: city.regionId,
+      regionName: city.regionName
+    };
+  });
+  
+  return cityMap;
+}
 
 
 async function getSearchResults(cityName, cityConfig) {
@@ -179,19 +162,20 @@ async function processCity(cityName, cityConfig) {
 
 async function main() {
   const cityNames = process.argv[2];
+  const availableCities = getAvailableCities();
   
   if (!cityNames) {
-    console.error('Usage: node scripts/retry-failed-cities.js "Mississauga,Markham,Vaughan"');
-    console.error('Available cities:', Object.keys(FAILED_CITIES).join(', '));
+    console.error('Usage: node scripts/retry-failed-cities.js "Mississauga,Markham,Vaughan,Milwaukee"');
+    console.error('Available cities:', Object.keys(availableCities).join(', '));
     process.exit(1);
   }
 
   const citiesToRetry = cityNames.split(',').map(name => name.trim());
-  const invalidCities = citiesToRetry.filter(name => !FAILED_CITIES[name]);
+  const invalidCities = citiesToRetry.filter(name => !availableCities[name]);
   
   if (invalidCities.length > 0) {
     console.error(`❌ Invalid cities: ${invalidCities.join(', ')}`);
-    console.error('Available cities:', Object.keys(FAILED_CITIES).join(', '));
+    console.error('Available cities:', Object.keys(availableCities).join(', '));
     process.exit(1);
   }
 
@@ -204,7 +188,7 @@ async function main() {
   let totalListings = 0;
 
   for (const cityName of citiesToRetry) {
-    const cityConfig = FAILED_CITIES[cityName];
+    const cityConfig = availableCities[cityName];
     console.log(`\n🏙️  Processing ${cityName}...`);
     
     const result = await processCity(cityName, cityConfig);

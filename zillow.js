@@ -1883,7 +1883,8 @@ async function main(regionKeys = null, skipDetection = false) {
     verificationResults: { verifiedSold: 0, movedBackToActive: 0, inconclusive: 0 },
     regionalResults: {},
     runDuration: '',
-    timestamp
+    timestamp,
+    failedCities: [] // Track failed cities for email notifications
   };
 
   try {
@@ -2076,6 +2077,9 @@ async function main(regionKeys = null, skipDetection = false) {
     results.runDuration = `${Math.round((Date.now() - startTime) / 1000)}s`;
   } finally {
     await endRun(runId);
+
+    // Add failed cities information to results for email notification
+    results.failedCities = getCitiesNeedingRetry();
 
     // Send email notification
     console.log("\n📧 Sending email notification...");
