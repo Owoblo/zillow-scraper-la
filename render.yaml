@@ -1,41 +1,30 @@
-# render.yaml - Render configuration for Zillow Scraper
 services:
   - type: cron
-    name: zillow-scraper
+    name: zillow-scraper-main
     env: node
-    buildCommand: npm install --legacy-peer-deps
+    plan: free
+    buildCommand: npm install
     startCommand: npm run scrape:all
-    schedule: "0 */12 * * *"  # Every 12 hours at minute 0
+    schedule: "0 13,1 * * *"  # Run daily at 8 AM EST (1 PM UTC) and 8 PM EST (1 AM UTC)
     envVars:
       - key: NODE_ENV
         value: production
-      # Decodo proxy credentials (already embedded in code for security)
-      - key: DECODO_USERNAME
-        value: spob1kyjck
-      - key: DECODO_PASSWORD
-        value: sma7j92aJikN~zIBc2
-      # Fallback SmartProxy credentials (for local development)
       - key: SMARTPROXY_USER
-        sync: false  # Set in Render dashboard
+        sync: false
       - key: SMARTPROXY_PASS
-        sync: false  # Set in Render dashboard
-      - key: SUPABASE_URL
-        value: https://idbyrtwdeeruiutoukct.supabase.co
-      - key: SUPABASE_ANON_KEY
-        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlkYnlydHdkZWVydWl1dG91a2N0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgyNTk0NjQsImV4cCI6MjA1MzgzNTQ2NH0.Hw0oJmIuDGdITM3TZkMWeXkHy53kO4i8TCJMxb6_hko
-      - key: SKIP_VERIFICATION
-        value: "true"  # Skip verification to avoid 403 errors
-      - key: VERIFICATION_DELAY_MS
-        value: "15000"  # 15 seconds delay
-      - key: VERIFICATION_BATCH_SIZE
-        value: "1"  # Process one at a time
-      - key: EMAIL_USER
-        sync: false  # Set in Render dashboard
-      - key: EMAIL_PASS
-        sync: false  # Set in Render dashboard
-      - key: EMAIL_FROM
-        value: "Zillow Scraper <noreply@zillow-scraper.com>"
-      - key: NOTIFICATION_EMAIL
-        sync: false  # Set in Render dashboard
-      - key: SENDGRID_API_KEY
-        sync: false  # Optional: Set if using SendGrid instead of Gmail
+        sync: false
+
+  - type: cron
+    name: zillow-scraper-delayed-retry
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run delayed:retry
+    schedule: "30 13,1 * * *"  # Run 30 minutes after main scrape (8:30 AM EST and 8:30 PM EST)
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SMARTPROXY_USER
+        sync: false
+      - key: SMARTPROXY_PASS
+        sync: false

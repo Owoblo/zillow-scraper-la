@@ -913,8 +913,10 @@ async function switchTables() {
 
     console.log(`📋 Found ${count} listings to copy to previous table...`);
 
-    // Clear previous listings table first
+    // Clear previous listings table first (more robust approach)
     console.log("🗑️  Clearing previous listings table...");
+    
+    // First, try to delete all records
     const { error: clearPrevError } = await supabase
       .from(PREVIOUS_LISTINGS_TABLE)
       .delete()
@@ -922,6 +924,26 @@ async function switchTables() {
     
     if (clearPrevError) {
       console.warn("⚠️  Warning: Could not clear previous table:", clearPrevError.message);
+      console.log("🔄 Trying alternative clear method...");
+      
+      // Alternative: Delete by checking if zpid exists in current_listings
+      const { data: currentZpids, error: currentZpidsError } = await supabase
+        .from(CURRENT_LISTINGS_TABLE)
+        .select('zpid');
+      
+      if (!currentZpidsError && currentZpids.length > 0) {
+        const zpidList = currentZpids.map(item => item.zpid).filter(Boolean);
+        const { error: deleteByZpidError } = await supabase
+          .from(PREVIOUS_LISTINGS_TABLE)
+          .delete()
+          .in('zpid', zpidList);
+        
+        if (deleteByZpidError) {
+          console.warn("⚠️  Alternative clear also failed:", deleteByZpidError.message);
+        } else {
+          console.log("✅ Cleared previous listings table using alternative method");
+        }
+      }
     } else {
       console.log("✅ Cleared previous listings table");
     }
@@ -970,10 +992,13 @@ async function switchTables() {
             break;
           }
           
-          // Insert the batch into previous table
+          // Upsert the batch into previous table (handles duplicates)
           const { error: insertError } = await supabase
             .from(PREVIOUS_LISTINGS_TABLE)
-            .insert(batchData);
+            .upsert(batchData, { 
+              onConflict: 'zpid',
+              ignoreDuplicates: false // Update existing records
+            });
           
           if (insertError) {
             if (insertError.code === '57014' || insertError.message?.includes('timeout')) {

@@ -15,6 +15,10 @@
     "scrape:first-time": "node scripts/run-region-first-time.js",
     "retry:failed": "node scripts/retry-failed-cities.js",
     "detect:cities": "node scripts/detect-specific-cities.js",
+    "detect:retry": "node scripts/detect-specific-cities.js",
+    "auto:retry": "node scripts/auto-retry-failed.js",
+    "delayed:retry": "node scripts/delayed-retry.js",
+    "schedule:delayed": "node scripts/schedule-delayed-retry.js",
     "recover:city": "node scripts/recover-city.js"
   },
   "keywords": [

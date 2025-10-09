@@ -1,177 +1,155 @@
 #!/usr/bin/env node
 
-// Script to run detection logic for specific cities only
+// Script to detect sold and just-listed properties for specific cities only
 // Usage: node scripts/detect-specific-cities.js "Oakville,Burlington,Milwaukee"
 
-import { createClient } from "@supabase/supabase-js";
-import { detectJustListedAndSoldByRegion } from '../zillow.js';
-import { getAllCities } from '../config/regions.js';
+import { createClient } from '@supabase/supabase-js';
 
-// Supabase configuration
+// Initialize Supabase client
 const supabaseUrl = 'https://idbyrtwdeeruiutoukct.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlkYnlydHdkZWVydWl1dG91a2N0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgyNTk0NjQsImV4cCI6MjA1MzgzNTQ2NH0.Hw0oJmIuDGdITM3TZkMWeXkHy53kO4i8TCJMxb6_hko';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Generate unique run ID
-const runId = `detect-${Date.now()}`;
+// Table names
+const CURRENT_LISTINGS_TABLE = "current_listings";
+const PREVIOUS_LISTINGS_TABLE = "previous_listings";
+const JUST_LISTED_TABLE = "just_listed";
+const SOLD_LISTINGS_TABLE = "sold_listings";
 
-async function runDetectionForCities(cityNames) {
-  console.log(`🔍 Running detection for specific cities: ${cityNames.join(', ')}`);
-  console.log(`🆔 Run ID: ${runId}`);
-  console.log('');
-
-  // Get all available cities from regions configuration
-  const allCities = getAllCities();
-  const cityMap = {};
+/**
+ * Detect just-listed and sold listings for specific cities only
+ */
+async function detectForSpecificCities(cityNames) {
+  console.log(`🔍 Detecting changes for specific cities: ${cityNames.join(', ')}`);
   
-  allCities.forEach(city => {
-    cityMap[city.name] = {
-      regionName: city.regionName,
-      regionKey: city.regionKey
-    };
-  });
-
-  // Validate cities
-  const invalidCities = cityNames.filter(name => !cityMap[name]);
-  if (invalidCities.length > 0) {
-    console.error(`❌ Invalid cities: ${invalidCities.join(', ')}`);
-    console.error('Available cities:', Object.keys(cityMap).join(', '));
-    process.exit(1);
-  }
-
-  // Group cities by region
-  const citiesByRegion = {};
-  cityNames.forEach(cityName => {
-    const cityInfo = cityMap[cityName];
-    const regionKey = cityInfo.regionKey;
-    
-    if (!citiesByRegion[regionKey]) {
-      citiesByRegion[regionKey] = {
-        regionName: cityInfo.regionName,
-        cities: []
-      };
-    }
-    citiesByRegion[regionKey].cities.push(cityName);
-  });
-
-  console.log(`📊 Processing ${cityNames.length} cities across ${Object.keys(citiesByRegion).length} regions:`);
-  Object.entries(citiesByRegion).forEach(([regionKey, regionData]) => {
-    console.log(`   - ${regionData.regionName}: ${regionData.cities.join(', ')}`);
-  });
-  console.log('');
-
   let totalJustListed = 0;
   let totalSold = 0;
-  const results = {};
-
-  // Run detection for each region with proper city filtering
-  for (const [regionKey, regionData] of Object.entries(citiesByRegion)) {
-    console.log(`\n🏙️  Processing ${regionData.regionName}...`);
-    console.log(`📍 Cities: ${regionData.cities.join(', ')}`);
+  
+  for (const cityName of cityNames) {
+    console.log(`\n📍 Processing ${cityName}...`);
     
     try {
-      // First, check if we have data for this region
-      console.log(`🔍 Checking data availability for ${regionData.regionName}...`);
-      
-      const { data: currentData, error: currentError } = await supabase
-        .from('current_listings')
-        .select('*')
-        .eq('region', regionData.regionName)
-        .in('city', regionData.cities);
+      // Get current listings for this specific city only
+      const { data: currentListings, error: currentError } = await supabase
+        .from(CURRENT_LISTINGS_TABLE)
+        .select("*")
+        .eq('city', cityName);
       
       if (currentError) throw currentError;
+
+      // Get previous listings for this specific city only
+      const { data: previousListings, error: prevError } = await supabase
+        .from(PREVIOUS_LISTINGS_TABLE)
+        .select("*")
+        .eq('city', cityName);
       
-      const { data: previousData, error: previousError } = await supabase
-        .from('previous_listings')
-        .select('*')
-        .eq('region', regionData.regionName)
-        .in('city', regionData.cities);
+      if (prevError) throw prevError;
+
+      console.log(`📊 ${cityName}: Current=${currentListings.length}, Previous=${previousListings.length}`);
       
-      if (previousError) throw previousError;
-      
-      console.log(`📊 Current: ${currentData.length} listings, Previous: ${previousData.length} listings`);
-      
-      if (currentData.length === 0) {
-        console.log(`⚠️  No current data for ${regionData.regionName} - skipping detection`);
-        results[regionKey] = {
-          regionName: regionData.regionName,
-          cities: regionData.cities,
-          justListed: 0,
-          sold: 0,
-          error: 'No current data available'
-        };
+      if (previousListings.length === 0) {
+        console.log(`⚠️  ${cityName}: No previous data - this might be the first run for this city`);
         continue;
       }
+
+      // Create sets for efficient comparison
+      const currentZpidSet = new Set(currentListings.map(l => l.zpid));
+      const previousZpidSet = new Set(previousListings.map(l => l.zpid));
       
-      if (previousData.length === 0) {
-        console.log(`⚠️  No previous data for ${regionData.regionName} - this appears to be a first-time run`);
-        console.log(`💡 Skipping detection to avoid false positives`);
-        results[regionKey] = {
-          regionName: regionData.regionName,
-          cities: regionData.cities,
-          justListed: 0,
-          sold: 0,
-          error: 'No previous data - first time run'
-        };
-        continue;
+      // Find just-listed (in current but not in previous)
+      const justListed = currentListings.filter(listing => !previousZpidSet.has(listing.zpid));
+      
+      // Find sold (in previous but not in current)
+      const soldListings = previousListings.filter(listing => !currentZpidSet.has(listing.zpid));
+      
+      console.log(`📈 ${cityName}: ${justListed.length} just-listed, ${soldListings.length} sold`);
+      
+      // Store just-listed listings
+      if (justListed.length > 0) {
+        const { error: justListedError } = await supabase
+          .from(JUST_LISTED_TABLE)
+          .upsert(justListed, { onConflict: "zpid" });
+        
+        if (justListedError) throw justListedError;
+        console.log(`✅ Stored ${justListed.length} just-listed listings for ${cityName}`);
+        
+        // Show sample just-listed
+        console.log(`📋 Sample just-listed for ${cityName}:`);
+        justListed.slice(0, 3).forEach((listing, index) => {
+          console.log(`  ${index + 1}. ${listing.addressstreet || listing.address} - $${listing.unformattedprice || listing.price}`);
+        });
       }
       
-      // Run actual detection
-      const regionResult = await detectJustListedAndSoldByRegion(regionKey, runId, regionData.cities);
+      // Store sold listings
+      if (soldListings.length > 0) {
+        const { error: soldError } = await supabase
+          .from(SOLD_LISTINGS_TABLE)
+          .upsert(soldListings, { onConflict: "zpid" });
+        
+        if (soldError) throw soldError;
+        console.log(`✅ Stored ${soldListings.length} sold listings for ${cityName}`);
+        
+        // Show sample sold
+        console.log(`📋 Sample sold for ${cityName}:`);
+        soldListings.slice(0, 3).forEach((listing, index) => {
+          console.log(`  ${index + 1}. ${listing.addressstreet || listing.address} - $${listing.unformattedprice || listing.price}`);
+        });
+      }
       
-      results[regionKey] = {
-        regionName: regionData.regionName,
-        cities: regionData.cities,
-        justListed: regionResult.justListed.length,
-        sold: regionResult.soldListings.length,
-        justListedList: regionResult.justListed,
-        soldList: regionResult.soldListings
-      };
-      
-      totalJustListed += regionResult.justListed.length;
-      totalSold += regionResult.soldListings.length;
-      
-      console.log(`✅ ${regionData.regionName}: ${regionResult.justListed.length} just-listed, ${regionResult.soldListings.length} sold`);
+      totalJustListed += justListed.length;
+      totalSold += soldListings.length;
       
     } catch (error) {
-      console.error(`❌ Error processing ${regionData.regionName}:`, error.message);
-      results[regionKey] = {
-        regionName: regionData.regionName,
-        cities: regionData.cities,
-        error: error.message
-      };
+      console.error(`❌ Error processing ${cityName}:`, error.message);
     }
   }
-
-  // Summary
-  console.log('\n📊 DETECTION RESULTS:');
-  console.log(`Total just-listed: ${totalJustListed}`);
-  console.log(`Total sold: ${totalSold}`);
-  console.log('\nPer Region:');
   
-  Object.entries(results).forEach(([regionKey, result]) => {
-    if (result.error) {
-      console.log(`❌ ${result.regionName}: ${result.error}`);
-    } else {
-      console.log(`✅ ${result.regionName}: ${result.justListed} just-listed, ${result.sold} sold`);
+  return { totalJustListed, totalSold };
+}
+
+/**
+ * Switch tables for next run (current becomes previous)
+ */
+async function switchTables() {
+  console.log("\n🔄 Switching tables for next run...");
+  
+  try {
+    // Clear previous listings table
+    const { error: clearPrevError } = await supabase
+      .from(PREVIOUS_LISTINGS_TABLE)
+      .delete()
+      .neq('zpid', ''); // Delete all records
+    
+    if (clearPrevError) throw clearPrevError;
+
+    // Move current listings to previous listings
+    const { data: currentListings, error: currentError } = await supabase
+      .from(CURRENT_LISTINGS_TABLE)
+      .select("*");
+    
+    if (currentError) throw currentError;
+
+    if (currentListings.length > 0) {
+      const { error: moveError } = await supabase
+        .from(PREVIOUS_LISTINGS_TABLE)
+        .insert(currentListings);
       
-      // Show some examples
-      if (result.justListed > 0) {
-        console.log(`   📍 Just-listed examples: ${result.justListedList.slice(0, 3).map(item => item.address).join(', ')}${result.justListed > 3 ? '...' : ''}`);
-      }
-      if (result.sold > 0) {
-        console.log(`   🏠 Sold examples: ${result.soldList.slice(0, 3).map(item => item.address).join(', ')}${result.sold > 3 ? '...' : ''}`);
-      }
+      if (moveError) throw moveError;
     }
-  });
 
-  console.log('\n🎉 Detection completed for specified cities!');
-  
-  return {
-    totalJustListed,
-    totalSold,
-    results
-  };
+    // Clear current listings table for next run
+    const { error: clearCurrentError } = await supabase
+      .from(CURRENT_LISTINGS_TABLE)
+      .delete()
+      .neq('zpid', '');
+    
+    if (clearCurrentError) throw clearCurrentError;
+
+    console.log("✅ Tables switched successfully");
+  } catch (error) {
+    console.error("❌ Error switching tables:", error);
+    throw error;
+  }
 }
 
 async function main() {
@@ -179,16 +157,29 @@ async function main() {
   
   if (!cityNames) {
     console.error('Usage: node scripts/detect-specific-cities.js "Oakville,Burlington,Milwaukee"');
-    console.error('Available cities:', getAllCities().map(c => c.name).join(', '));
     process.exit(1);
   }
 
-  const citiesToDetect = cityNames.split(',').map(name => name.trim());
+  const citiesToProcess = cityNames.split(',').map(name => name.trim());
+  
+  console.log(`🚀 Starting city-specific detection for: ${citiesToProcess.join(', ')}`);
   
   try {
-    await runDetectionForCities(citiesToDetect);
+    // Run detection for specific cities only
+    const { totalJustListed, totalSold } = await detectForSpecificCities(citiesToProcess);
+    
+    console.log(`\n📈 DETECTION RESULTS:`);
+    console.log(`   - Total just-listed: ${totalJustListed}`);
+    console.log(`   - Total sold: ${totalSold}`);
+    
+    // Switch tables for next run
+    console.log('\n🔄 Switching tables for next run...');
+    await switchTables();
+    
+    console.log('\n✅ City-specific detection completed successfully!');
+    
   } catch (error) {
-    console.error('❌ Detection failed:', error.message);
+    console.error("❌ Detection process failed:", error);
     process.exit(1);
   }
 }

@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
-// Script to retry specific failed cities with no detection logic
+// Script to retry specific failed cities WITH detection logic
 // Usage: node scripts/retry-failed-cities.js "Mississauga,Markham,Vaughan"
 
 import { createClient } from "@supabase/supabase-js";
 import { getSmartProxyAgent } from '../proxies.js';
 import { mapItemToRow, upsertListingsWithValidation } from '../zillow.js';
 import { getAllCities } from '../config/regions.js';
+import { detectJustListedAndSold, switchTables } from '../detectSoldListings.js';
 
 // Supabase configuration
 const supabaseUrl = 'https://idbyrtwdeeruiutoukct.supabase.co';
@@ -181,7 +182,7 @@ async function main() {
 
   console.log(`🚀 Retrying failed cities: ${citiesToRetry.join(', ')}`);
   console.log(`🆔 Run ID: ${runId}`);
-  console.log(`ℹ️  Detection will be SKIPPED - just populating database`);
+  console.log(`ℹ️  Detection will be ENABLED - will detect sold and just-listed properties`);
   console.log('');
 
   const results = {};
@@ -214,7 +215,48 @@ async function main() {
     }
   });
 
-  console.log('\n🎉 Failed cities retry completed!');
+  // Detection phase - only run if we have successful cities
+  const successfulCities = Object.entries(results).filter(([_, result]) => result.success);
+  
+  if (successfulCities.length > 0) {
+    console.log('\n🔍 Running detection for sold and just-listed properties...');
+    
+    try {
+      // Run detection for all regions (since we don't know which region the cities belong to)
+      const { justListed, soldListings } = await detectJustListedAndSold();
+      
+      console.log(`\n📈 DETECTION RESULTS:`);
+      console.log(`   - Just-listed properties: ${justListed.length}`);
+      console.log(`   - Sold properties: ${soldListings.length}`);
+      
+      if (justListed.length > 0) {
+        console.log(`\n📋 Sample just-listed properties:`);
+        justListed.slice(0, 3).forEach((listing, index) => {
+          console.log(`  ${index + 1}. ${listing.addressstreet || listing.address} - ${listing.addresscity} ($${listing.unformattedprice || listing.price})`);
+        });
+      }
+      
+      if (soldListings.length > 0) {
+        console.log(`\n📋 Sample sold properties:`);
+        soldListings.slice(0, 3).forEach((listing, index) => {
+          console.log(`  ${index + 1}. ${listing.addressstreet || listing.address} - ${listing.addresscity} ($${listing.unformattedprice || listing.price})`);
+        });
+      }
+      
+      // Switch tables for next run
+      console.log('\n🔄 Switching tables for next run...');
+      await switchTables();
+      console.log('✅ Tables switched successfully');
+      
+    } catch (error) {
+      console.error('❌ Error during detection:', error.message);
+      console.log('⚠️  Continuing without detection...');
+    }
+  } else {
+    console.log('\n⚠️  No successful cities - skipping detection');
+  }
+
+  console.log('\n🎉 Failed cities retry with detection completed!');
 }
 
 main().catch(console.error);
