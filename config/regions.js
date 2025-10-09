@@ -204,11 +204,12 @@ export const REGIONS = {
 // Helper functions for working with regions
 export function getAllCities() {
   const allCities = [];
-  Object.values(REGIONS).forEach(region => {
+  Object.entries(REGIONS).forEach(([regionKey, region]) => {
     region.cities.forEach(city => {
       allCities.push({
         ...city,
-        regionName: region.name
+        regionName: region.name,
+        regionKey: regionKey
       });
     });
   });

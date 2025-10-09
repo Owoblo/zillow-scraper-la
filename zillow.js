@@ -1816,7 +1816,7 @@ async function processRegionsSequentially(runId, regionKeys = null) {
 }
 
 // Enhanced detection with regional filtering
-async function detectJustListedAndSoldByRegion(regionKey = null) {
+async function detectJustListedAndSoldByRegion(regionKey = null, runId = null, cities = null) {
   console.log("\n🔍 Detecting just-listed and sold listings...");
   
   try {
@@ -1826,8 +1826,18 @@ async function detectJustListedAndSoldByRegion(regionKey = null) {
     // Filter by region if specified
     if (regionKey) {
       const region = REGIONS[regionKey];
+      if (!region) {
+        throw new Error(`Region '${regionKey}' not found`);
+      }
       currentQuery = currentQuery.eq('region', region.name);
       previousQuery = previousQuery.eq('region', region.name);
+      
+      // Filter by specific cities if provided
+      if (cities && cities.length > 0) {
+        currentQuery = currentQuery.in('city', cities);
+        previousQuery = previousQuery.in('city', cities);
+        console.log(`📍 Filtering by cities: ${cities.join(', ')}`);
+      }
     }
     
     const { data: currentListings, error: currentError } = await currentQuery;
