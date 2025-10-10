@@ -2128,6 +2128,7 @@ export {
   processRegion, 
   processRegionsConcurrently, 
   detectJustListedAndSoldByRegion,
+  switchTables,
   mapItemToRow,
   upsertListingsWithValidation,
   validateListingData,

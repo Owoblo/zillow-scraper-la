@@ -19,7 +19,10 @@
     "auto:retry": "node scripts/auto-retry-failed.js",
     "delayed:retry": "node scripts/delayed-retry.js",
     "schedule:delayed": "node scripts/schedule-delayed-retry.js",
-    "recover:city": "node scripts/recover-city.js"
+    "recover:city": "node scripts/recover-city.js",
+    "advanced": "node advanced-zillow.js",
+    "advanced:scraper": "node advanced-scraper.js",
+    "advanced:test": "node advanced-zillow.js"
   },
   "keywords": [
     "zillow",

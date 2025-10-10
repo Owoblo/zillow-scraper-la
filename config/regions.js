@@ -161,6 +161,28 @@ export const REGIONS = {
         },
         regionId: 792839
       },
+    ]
+  },
+
+  'milwaukee-area': {
+    name: 'Milwaukee Area',
+    cities: [
+      {
+        name: "Milwaukee",
+        mapBounds: {
+          north: 43.13175115230508,
+          south: 42.9842495746899,
+          east: -87.73042429980468,
+          west: -88.2042097001953,
+        },
+        regionId: 5976,
+      },
+    ]
+  },
+
+  'gta-extended': {
+    name: 'GTA Extended',
+    cities: [
       {
         name: "Oakville",
         mapBounds: {
@@ -182,23 +204,8 @@ export const REGIONS = {
         regionId: 792723
       }
     ]
-  },
-
-  'milwaukee-area': {
-    name: 'Milwaukee Area',
-    cities: [
-      {
-        name: "Milwaukee",
-        mapBounds: {
-          north: 43.13175115230508,
-          south: 42.9842495746899,
-          east: -87.73042429980468,
-          west: -88.2042097001953,
-        },
-        regionId: 5976,
-      },
-    ]
   }
+
 };
 
 // Helper functions for working with regions
