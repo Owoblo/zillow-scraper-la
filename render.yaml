@@ -4,7 +4,7 @@ services:
     env: node
     plan: free
     buildCommand: npm install
-    startCommand: npm run scrape:all
+    startCommand: npm run advanced
     schedule: "0 13,1 * * *"  # Run daily at 8 AM EST (1 PM UTC) and 8 PM EST (1 AM UTC)
     envVars:
       - key: NODE_ENV
@@ -19,7 +19,7 @@ services:
     env: node
     plan: free
     buildCommand: npm install
-    startCommand: npm run delayed:retry
+    startCommand: npm run advanced:test
     schedule: "30 13,1 * * *"  # Run 30 minutes after main scrape (8:30 AM EST and 8:30 PM EST)
     envVars:
       - key: NODE_ENV
