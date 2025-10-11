@@ -23,7 +23,11 @@
     "advanced": "node advanced-zillow.js",
     "advanced:scraper": "node advanced-scraper.js",
     "advanced:detection": "node advanced-detection.js",
-    "advanced:test": "node advanced-zillow.js"
+    "advanced:test": "node advanced-zillow.js",
+    "enterprise": "node enterprise-simple.js",
+    "enterprise:monitor": "node monitoring-dashboard.js",
+    "enterprise:worker": "node queue-worker.js",
+    "enterprise:queue": "node queue-manager.js"
   },
   "keywords": [
     "zillow",
@@ -37,16 +41,24 @@
   "dependencies": {
     "@supabase/supabase-js": "2.48.1",
     "axios": "1.7.9",
+    "bull": "^4.16.5",
     "cheerio": "1.0.0",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
     "csv-parser": "3.0.0",
     "csv-writer": "1.6.0",
     "dotenv": "17.2.3",
+    "express": "^5.1.0",
     "graceful-fs": "4.2.11",
+    "helmet": "^8.1.0",
     "https-proxy-agent": "7.0.6",
+    "ioredis": "^5.8.1",
+    "morgan": "^1.10.1",
     "node-fetch": "3.3.2",
     "nodemailer": "6.9.8",
     "puppeteer-extra": "3.3.6",
     "puppeteer-extra-plugin-stealth": "2.11.2",
+    "redis": "^5.8.3",
     "uuid": "12.0.0"
   },
   "type": "module",

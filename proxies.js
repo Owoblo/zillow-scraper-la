@@ -26,20 +26,39 @@ export function getDecodoProxyUrl() {
   return `http://${DECODO_STATIC_IP.username}:${DECODO_STATIC_IP.password}@${DECODO_STATIC_IP.host}:${DECODO_STATIC_IP.port}`;
 }
 
-// Main proxy function - uses Decodo for production with correct whitelisted IP format
+// Enhanced proxy rotation for better anti-detection
+let proxyRotationIndex = 0;
+const PROXY_ROTATION = [
+  'decodo',
+  'smartproxy', 
+  'stormproxy'
+];
+
+// Main proxy function with rotation for better anti-detection
 export function getSmartProxyAgent() {
+  const proxyType = PROXY_ROTATION[proxyRotationIndex % PROXY_ROTATION.length];
+  proxyRotationIndex++;
+  
   // Use Decodo for production (Render deployment) with whitelisted IP
   if (process.env.NODE_ENV === 'production') {
     return getDecodoProxyAgent();
   }
   
-  // Fallback to original SmartProxy for local development
-  const proxyAgent = new HttpsProxyAgent({
-    host: "ca.smartproxy.com",
-    port: 20000,
-    auth: `${process.env.SMARTPROXY_USER}:${process.env.SMARTPROXY_PASS}`,
-  });
-  return proxyAgent;
+  // Local development with rotation
+  switch (proxyType) {
+    case 'decodo':
+      return getDecodoProxyAgent();
+    case 'smartproxy':
+      return new HttpsProxyAgent({
+        host: "ca.smartproxy.com",
+        port: 20000,
+        auth: `${process.env.SMARTPROXY_USER}:${process.env.SMARTPROXY_PASS}`,
+      });
+    case 'stormproxy':
+      return getStormProxyAgent();
+    default:
+      return getDecodoProxyAgent();
+  }
 }
 
 export function getSmartProxyUrl() {
