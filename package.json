@@ -22,6 +22,7 @@
     "recover:city": "node scripts/recover-city.js",
     "advanced": "node advanced-zillow.js",
     "advanced:scraper": "node advanced-scraper.js",
+    "advanced:detection": "node advanced-detection.js",
     "advanced:test": "node advanced-zillow.js"
   },
   "keywords": [

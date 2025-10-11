@@ -4,7 +4,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { runAdvancedScraper } from './advanced-scraper.js';
 import { scheduler, SCHEDULING_STRATEGIES } from './advanced-scheduler.js';
-import { detectJustListedAndSoldByRegion, switchTables } from './zillow.js';
+import { runAdvancedDetection } from './advanced-detection.js';
+import { switchTables } from './zillow.js';
+import { sendScrapeNotification } from './emailService.js';
 
 // Supabase configuration
 const supabaseUrl = 'https://idbyrtwdeeruiutoukct.supabase.co';
@@ -46,7 +48,7 @@ async function runAdvancedZillowScraper() {
       console.log('\n🔍 Phase 2: Advanced Detection...');
       
       try {
-        const { justListed, soldListings } = await detectJustListedAndSoldByRegion();
+        const { justListed, soldListings } = await runAdvancedDetection();
         detectionResults = { justListed, soldListings };
         
         console.log(`\n📈 DETECTION RESULTS:`);
@@ -142,7 +144,28 @@ async function runAdvancedZillowScraper() {
     // Email notification (if enabled)
     if (ADVANCED_CONFIG.ENABLE_EMAIL_NOTIFICATIONS) {
       console.log('\n📧 Sending email notification...');
-      // Email logic would go here
+      
+      // Prepare email data with city-by-city details
+      const emailData = {
+        success: true,
+        totalListings,
+        justListed: detectionResults.justListed.length,
+        soldListings: detectionResults.soldListings.length,
+        runDuration: `${duration}s`,
+        timestamp: new Date().toISOString(),
+        cityDetails: Object.entries(results).map(([cityName, result]) => ({
+          name: cityName,
+          region: result.region || 'Unknown',
+          justListed: detectionResults.justListed.filter(l => l.addresscity === cityName).length,
+          sold: detectionResults.soldListings.filter(l => l.addresscity === cityName).length,
+          total: result.listings || 0
+        })),
+        failedCities: Object.entries(results)
+          .filter(([_, result]) => !result.success)
+          .map(([cityName, _]) => cityName)
+      };
+      
+      await sendScrapeNotification(emailData);
     }
     
     console.log('\n🎉 Advanced scraper completed successfully!');
