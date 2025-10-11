@@ -39,6 +39,8 @@ export function getSmartProxyAgent() {
   const proxyType = PROXY_ROTATION[proxyRotationIndex % PROXY_ROTATION.length];
   proxyRotationIndex++;
   
+  console.log(`🔄 Using proxy: ${proxyType} (rotation ${proxyRotationIndex})`);
+  
   // Use Decodo for production (Render deployment) with whitelisted IP
   if (process.env.NODE_ENV === 'production') {
     return getDecodoProxyAgent();

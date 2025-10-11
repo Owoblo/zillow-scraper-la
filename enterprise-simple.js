@@ -177,15 +177,56 @@ class SimpleEnterpriseOrchestrator {
       const batchResults = await Promise.allSettled(batchPromises);
       results.push(...batchResults.map(r => r.status === 'fulfilled' ? r.value : { success: false, error: r.reason }));
       
-      // Delay between batches
+      // Delay between batches with randomization
       if (i + ENTERPRISE_CONFIG.MAX_CONCURRENT_REGIONS < regions.length) {
-        console.log(`⏳ Waiting ${ENTERPRISE_CONFIG.REGION_DELAY_MS}ms before next batch...`);
-        await new Promise(resolve => setTimeout(resolve, ENTERPRISE_CONFIG.REGION_DELAY_MS));
+        const randomDelay = ENTERPRISE_CONFIG.REGION_DELAY_MS + Math.floor(Math.random() * 5000); // 5-10 seconds
+        console.log(`⏳ Waiting ${randomDelay}ms before next batch...`);
+        await new Promise(resolve => setTimeout(resolve, randomDelay));
       }
     }
     
     this.results = results;
     console.log(`✅ All regions processed: ${results.filter(r => r.success).length}/${results.length} successful`);
+    
+    // Retry failed cities if enabled
+    if (ENTERPRISE_CONFIG.RETRY_FAILED_CITIES) {
+      const failedResults = results.filter(r => !r.success);
+      if (failedResults.length > 0) {
+        console.log(`🔄 Retrying ${failedResults.length} failed regions...`);
+        await this.retryFailedRegions(failedResults);
+      }
+    }
+  }
+
+  // Retry failed regions
+  async retryFailedRegions(failedResults) {
+    console.log('🔄 Retrying failed regions with enhanced anti-detection...');
+    
+    for (const failedResult of failedResults) {
+      try {
+        console.log(`🔄 Retrying ${failedResult.region}...`);
+        
+        // Wait longer before retry
+        await new Promise(resolve => setTimeout(resolve, 10000 + Math.floor(Math.random() * 10000))); // 10-20 seconds
+        
+        const regionKey = this.getRegionKey(failedResult.region);
+        const result = await processRegionsConcurrently([regionKey]);
+        
+        if (result && result.length > 0) {
+          const regionResult = result[0];
+          this.metrics.totalListings += regionResult.listings?.length || 0;
+          this.metrics.successfulCities += regionResult.cities || 0;
+          this.metrics.retriesAttempted++;
+          
+          console.log(`✅ ${failedResult.region}: Retry successful - ${regionResult.listings?.length || 0} listings`);
+        } else {
+          console.log(`❌ ${failedResult.region}: Retry failed`);
+        }
+        
+      } catch (error) {
+        console.error(`❌ ${failedResult.region}: Retry error:`, error.message);
+      }
+    }
   }
 
   // Get region key from region name
@@ -200,12 +241,14 @@ class SimpleEnterpriseOrchestrator {
     return keyMap[regionName] || regionName.toLowerCase().replace(/\s+/g, '-');
   }
 
-  // Run enterprise detection
+  // Run enterprise detection with city-by-city processing
   async runEnterpriseDetection() {
     console.log('🔍 Running enterprise detection...');
     
     try {
-      const { justListed, soldListings } = await detectJustListedAndSoldByRegion();
+      // Use city-by-city detection to prevent timeouts
+      const { runAdvancedDetection } = await import('./advanced-detection.js');
+      const { justListed, soldListings } = await runAdvancedDetection();
       
       this.detectionResults = { justListed, soldListings };
       
