@@ -204,6 +204,38 @@ export const REGIONS = {
         regionId: 792723
       }
     ]
+  },
+
+  'western-canada': {
+    name: 'Western Canada',
+    cities: [
+      {
+        name: "Vancouver",
+        mapBounds: {
+          north: 49.29225492647218,
+          south: 49.22301650487465,
+          east: -123.00513264990234,
+          west: -123.24202535009765
+        },
+        regionId: 791534
+      }
+    ]
+  },
+
+  'southwestern-ontario': {
+    name: 'Southwestern Ontario',
+    cities: [
+      {
+        name: "London",
+        mapBounds: {
+          north: 43.126668905773755,
+          south: 42.77083008313961,
+          east: -80.77475059960938,
+          west: -81.72232140039063
+        },
+        regionId: 792613
+      }
+    ]
   }
 
 };

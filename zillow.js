@@ -2132,6 +2132,7 @@ export {
   mapItemToRow,
   upsertListingsWithValidation,
   validateListingData,
+  fetchSearchPage,
   fetchPageWithRetries,
   sleep,
   REGIONS,
