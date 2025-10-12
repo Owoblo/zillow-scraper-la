@@ -44,7 +44,8 @@
     "optimized:test": "node -e \"import('./optimized-regional-system.js').then(m => { const system = new m.default(); system.processBatch(0).then(console.log).catch(console.error); })\"",
     "test:now": "node test-optimized-now.js",
     "focused:run": "node enhanced-optimized-system.js",
-    "proxy:run": "node focused-proxy-system.js"
+    "proxy:run": "node focused-proxy-system.js",
+    "marketing:test": "node test-marketing-email.js"
   },
   "keywords": [
     "zillow",

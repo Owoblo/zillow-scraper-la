@@ -2065,6 +2065,16 @@ async function main(regionKeys = null, skipDetection = false) {
         sold: soldListings.length,
         total: justListed.length + soldListings.length
       });
+      
+      // 🚀 Send marketing emails for cities with significant activity
+      if (justListed.length > 0 || soldListings.length > 0) {
+        try {
+          const { sendMarketingEmail } = await import('./marketing-email-service.js');
+          await sendMarketingEmail(cityName, justListed.length, soldListings);
+        } catch (error) {
+          console.error(`❌ Marketing email failed for ${cityName}:`, error.message);
+        }
+      }
     }
     
     // Add city details to results
