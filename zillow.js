@@ -2066,11 +2066,11 @@ async function main(regionKeys = null, skipDetection = false) {
         total: justListed.length + soldListings.length
       });
       
-      // 🚀 Send marketing emails for cities with significant activity
-      if (justListed.length > 0 || soldListings.length > 0) {
+      // 🚀 Send marketing emails for cities with SOLD listings (movers needed)
+      if (soldListings.length > 0) {
         try {
           const { sendMarketingEmail } = await import('./marketing-email-service.js');
-          await sendMarketingEmail(cityName, justListed.length, soldListings);
+          await sendMarketingEmail(cityName, 0, soldListings); // Focus on sold listings only
         } catch (error) {
           console.error(`❌ Marketing email failed for ${cityName}:`, error.message);
         }

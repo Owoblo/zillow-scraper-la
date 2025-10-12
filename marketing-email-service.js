@@ -10,7 +10,7 @@ dotenv.config();
 const EMAIL_CONFIG = {
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER,
+    user: process.env.EMAIL_USER, // Use working Gmail credentials
     pass: process.env.EMAIL_PASS
   }
 };
@@ -70,24 +70,24 @@ function generateMarketingTemplate(city, justListed, soldListings, topProperties
     <body>
       <div class="container">
         <div class="header">
-          <h1>🏠 Sold2Move Real Estate Alert</h1>
-          <p>Exclusive Market Updates for ${city}</p>
-          <p style="font-size: 14px; margin-top: 10px;">From: John Owolabi</p>
+          <h1>🚚 Sold2Move - Movers Needed Alert</h1>
+          <p>New Moving Opportunities in ${city}</p>
+          <p style="font-size: 14px; margin-top: 10px;">From: Sold2Move Team</p>
         </div>
         
         <div class="content">
           <div class="stats">
             <div class="stat-number">${totalActivity}</div>
-            <div class="stat-label">Properties ${justListed > 0 ? 'Just Listed' : 'Just Sold'} in ${city}</div>
+            <div class="stat-label">Houses Just Sold in ${city} - Movers Needed!</div>
             <p style="margin: 10px 0 0 0; color: #666;">${timeAgo}</p>
           </div>
           
           <div class="urgency">
-            <strong>⚡ Limited Time Opportunity!</strong><br>
-            These properties won't stay on the market long. Act fast!
+            <strong>🚚 Moving Opportunities Available!</strong><br>
+            These families just sold their homes and need professional movers. Get connected now!
           </div>
           
-          <h3>🔥 Top ${Math.min(5, topProperties.length)} Recent ${justListed > 0 ? 'Listings' : 'Sales'}:</h3>
+          <h3>🏠 Recent Sales - Moving Opportunities:</h3>
           
           ${topProperties.map(property => `
             <div class="property-card">
@@ -102,10 +102,10 @@ function generateMarketingTemplate(city, justListed, soldListings, topProperties
           `).join('')}
           
           <div class="cta-section">
-            <h3>🚀 Don't Miss Out on the Next Deal!</h3>
-            <p>Get instant alerts for new properties in your area</p>
+            <h3>🎯 Get Connected to These Moving Opportunities!</h3>
+            <p>Join Sold2Move and get <strong>200 FREE credits + 1 month FREE access</strong> to connect with families who need movers</p>
             <a href="${signupUrl}" class="btn btn-primary">
-              📱 Sign Up for More Deals
+              🚚 Get 200 FREE Credits + 1 Month FREE
             </a>
             <a href="${demoUrl}" class="btn btn-secondary">
               📅 Book a Demo
@@ -113,12 +113,12 @@ function generateMarketingTemplate(city, justListed, soldListings, topProperties
           </div>
           
           <div style="background: #e9ecef; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h4>💡 Why This Matters:</h4>
+            <h4>💡 Why Join Sold2Move:</h4>
             <ul>
-              <li>✅ Get notified within minutes of new listings</li>
-              <li>✅ Access to off-market properties</li>
-              <li>✅ Market insights and pricing trends</li>
-              <li>✅ Direct connection with local agents</li>
+              <li>✅ Get notified within minutes of new sales</li>
+              <li>✅ Connect directly with families who need movers</li>
+              <li>✅ Access to exclusive moving opportunities</li>
+              <li>✅ 200 FREE credits + 1 month FREE access</li>
             </ul>
           </div>
         </div>
@@ -156,10 +156,20 @@ export async function sendMarketingEmail(city, justListed, soldListings) {
     // Send to each email in the bulk list
     for (const email of marketingEmails) {
       try {
+        // Generate subject based on activity type
+        let subject;
+        if (justListed > 0 && soldListings.length > 0) {
+          subject = `🏠 ${totalActivity} Properties Just Listed/Sold in ${city}!`;
+        } else if (justListed > 0) {
+          subject = `🏠 ${justListed} New Properties Just Listed in ${city}!`;
+        } else {
+          subject = `🚚 ${soldListings.length} Houses Just Sold in ${city} - Movers Needed!`;
+        }
+        
         const mailOptions = {
-          from: MARKETING_CONFIG.OFFICIAL_EMAIL,
+          from: `"Sold2Move Team" <${process.env.EMAIL_USER}>`, // Professional sender name
           to: email,
-          subject: `🏠 ${totalActivity} Properties Just ${justListed > 0 ? 'Listed' : 'Sold'} in ${city}!`,
+          subject: subject,
           html: emailContent
         };
         
