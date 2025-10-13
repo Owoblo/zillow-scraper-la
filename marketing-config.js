@@ -40,6 +40,7 @@ export const LOCATION_EMAILS = {
   'gta': [
     'johnowolabi80@gmail.com',
     'highlevelmovers@gmail.com',
+    'info@kratosmoving.com',
     'info@rentason.ca',
     'mississauga@letsgetmoving.ca',
     'a1moversthatcare@hotmail.com',
