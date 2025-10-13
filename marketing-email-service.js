@@ -8,10 +8,15 @@ dotenv.config();
 
 // Marketing email configuration
 const EMAIL_CONFIG = {
-  service: 'gmail',
+  host: 'smtp.hostinger.com',
+  port: 587,
+  secure: false, // true for 465, false for other ports
   auth: {
-    user: process.env.EMAIL_USER, // Use working Gmail credentials
-    pass: process.env.EMAIL_PASS
+    user: process.env.SOLD2MOVE_EMAIL_USER || process.env.EMAIL_USER,
+    pass: process.env.SOLD2MOVE_EMAIL_PASS || process.env.EMAIL_PASS
+  },
+  tls: {
+    rejectUnauthorized: false
   }
 };
 
@@ -169,7 +174,7 @@ export async function sendMarketingEmail(city, justListed, soldListings) {
         }
         
         const mailOptions = {
-          from: `"Sold2Move Team" <${process.env.EMAIL_USER}>`, // Professional sender name
+          from: `"Sold2Move Team" <${EMAIL_CONFIG.auth.user}>`, // Use authenticated user
           to: email,
           subject: subject,
           html: emailContent

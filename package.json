@@ -45,7 +45,9 @@
     "test:now": "node test-optimized-now.js",
     "focused:run": "node enhanced-optimized-system.js",
     "proxy:run": "node focused-proxy-system.js",
-    "marketing:test": "node test-marketing-email.js"
+    "marketing:test": "node test-marketing-email.js",
+    "smtp:test": "node test-smtp.js",
+    "marketing:smtp": "node test-marketing-smtp.js"
   },
   "keywords": [
     "zillow",

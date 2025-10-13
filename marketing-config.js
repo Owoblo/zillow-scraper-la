@@ -39,6 +39,7 @@ export const LOCATION_EMAILS = {
   // GTA/Toronto area emails (Toronto, Mississauga, GTA)
   'gta': [
     'johnowolabi80@gmail.com',
+    'highlevelmovers@gmail.com',
     'info@rentason.ca',
     'mississauga@letsgetmoving.ca',
     'a1moversthatcare@hotmail.com',
