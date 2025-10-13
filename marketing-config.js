@@ -1,7 +1,7 @@
 // Marketing email configuration
 export const MARKETING_CONFIG = {
   // Minimum number of properties to trigger marketing email
-  MIN_PROPERTIES: 3,
+  MIN_PROPERTIES: 1,
   
   // Maximum number of properties to show in email
   MAX_PROPERTIES_SHOWN: 5,

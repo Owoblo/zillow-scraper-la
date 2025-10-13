@@ -183,26 +183,7 @@ export const REGIONS = {
   'gta-extended': {
     name: 'GTA Extended',
     cities: [
-      {
-        name: "Oakville",
-        mapBounds: {
-          north: 43.526527,
-          south: 43.368931,
-          east: -79.616164,
-          west: -79.810953
-        },
-        regionId: 792724
-      },
-      {
-        name: "Burlington",
-        mapBounds: {
-          north: 43.476542,
-          south: 43.286158,
-          east: -79.720181,
-          west: -79.959305
-        },
-        regionId: 792723
-      }
+      // Oakville and Burlington removed due to pattern issues
     ]
   },
 
