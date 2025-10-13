@@ -34,7 +34,35 @@ export const MARKETING_CONFIG = {
   }
 };
 
-// Default marketing email list (you can expand this)
+// Location-based marketing email lists
+export const LOCATION_EMAILS = {
+  // GTA/Toronto area emails (Toronto, Mississauga, GTA)
+  'gta': [
+    'johnowolabi80@gmail.com',
+    'info@rentason.ca',
+    'mississauga@letsgetmoving.ca',
+    'a1moversthatcare@hotmail.com',
+    'sales@amjmove.com',
+    'move@armmove.com',
+    'info@mmovers.ca',
+    'move@getmovers.ca',
+    'info@kingswayvanlines.com',
+    'info@richmondhillmovers.com',
+    'burlington@canadamoving.com',
+    'gtamoversontario@gmail.com',
+    'info@movingcompanybrampton.ca',
+    'info@oakvillemovingandstorage.com',
+    'info@torontoumoving.com',
+    'MoveMe@MyNinjaMovers.com'
+  ],
+  
+  // Windsor area emails
+  'windsor': [
+    'business@starmovers.ca'
+  ]
+};
+
+// Default marketing email list (fallback)
 export const DEFAULT_MARKETING_EMAILS = [
   'business@starmovers.ca',
   'johnowolabi80@gmail.com',
@@ -62,4 +90,22 @@ export function getMarketingEmailList() {
     return envEmails.split(',').map(email => email.trim());
   }
   return DEFAULT_MARKETING_EMAILS;
+}
+
+// Get location-based marketing email list
+export function getLocationBasedEmails(cityName) {
+  // GTA/Toronto area cities
+  const gtaCities = ['Toronto', 'Mississauga', 'Brampton', 'Markham', 'Vaughan', 'Richmond Hill'];
+  
+  // Windsor area cities  
+  const windsorCities = ['Windsor', 'Kingsville', 'Leamington', 'Lakeshore', 'Essex', 'Tecumseh', 'Lasalle', 'Chatham-Kent', 'Amherstburg'];
+  
+  if (gtaCities.includes(cityName)) {
+    return LOCATION_EMAILS.gta;
+  } else if (windsorCities.includes(cityName)) {
+    return LOCATION_EMAILS.windsor;
+  } else {
+    // Fallback to default list for unknown cities
+    return DEFAULT_MARKETING_EMAILS;
+  }
 }

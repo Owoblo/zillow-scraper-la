@@ -1,7 +1,7 @@
 // Marketing email service for automated lead generation
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
-import { MARKETING_CONFIG, getMarketingEmailList } from './marketing-config.js';
+import { MARKETING_CONFIG, getMarketingEmailList, getLocationBasedEmails } from './marketing-config.js';
 
 // Load environment variables
 dotenv.config();
@@ -149,7 +149,9 @@ export async function sendMarketingEmail(city, justListed, soldListings) {
     const emailContent = generateMarketingTemplate(city, justListed, soldListings, topProperties);
     
     const transporter = createMarketingTransporter();
-    const marketingEmails = getMarketingEmailList();
+    const marketingEmails = getLocationBasedEmails(city); // Use location-based targeting
+    
+    console.log(`🎯 Location-based targeting for ${city}: ${marketingEmails.length} emails`);
     let successCount = 0;
     let failureCount = 0;
     
