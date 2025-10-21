@@ -44,7 +44,6 @@ export const LOCATION_EMAILS = {
     'info@rentason.ca',
     'mississauga@letsgetmoving.ca',
     'a1moversthatcare@hotmail.com',
-    'sales@amjmove.com',
     'move@armmove.com',
     'info@mmovers.ca',
     'move@getmovers.ca',
@@ -53,7 +52,6 @@ export const LOCATION_EMAILS = {
     'burlington@canadamoving.com',
     'gtamoversontario@gmail.com',
     'info@movingcompanybrampton.ca',
-    'info@oakvillemovingandstorage.com',
     'info@torontoumoving.com',
     'MoveMe@MyNinjaMovers.com'
   ],
@@ -71,7 +69,6 @@ export const DEFAULT_MARKETING_EMAILS = [
   'info@rentason.ca',
   'mississauga@letsgetmoving.ca',
   'a1moversthatcare@hotmail.com',
-  'sales@amjmove.com',
   'move@armmove.com',
   'info@mmovers.ca',
   'move@getmovers.ca',
@@ -80,7 +77,6 @@ export const DEFAULT_MARKETING_EMAILS = [
   'burlington@canadamoving.com',
   'gtamoversontario@gmail.com',
   'info@movingcompanybrampton.ca',
-  'info@oakvillemovingandstorage.com',
   'info@torontoumoving.com',
   'MoveMe@MyNinjaMovers.com'
 ];
