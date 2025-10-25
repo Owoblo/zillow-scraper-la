@@ -92,8 +92,8 @@ export function getMarketingEmailList() {
 
 // Get location-based marketing email list
 export function getLocationBasedEmails(cityName) {
-  // GTA/Toronto area cities
-  const gtaCities = ['Toronto', 'Mississauga', 'Brampton', 'Markham', 'Vaughan', 'Richmond Hill'];
+  // GTA/Toronto area cities (includes KWG area for moving services)
+  const gtaCities = ['Toronto', 'Mississauga', 'Brampton', 'Markham', 'Vaughan', 'Richmond Hill', 'Kitchener', 'Guelph', 'Waterloo'];
   
   // Windsor area cities  
   const windsorCities = ['Windsor', 'Kingsville', 'Leamington', 'Lakeshore', 'Essex', 'Tecumseh', 'Lasalle', 'Chatham-Kent', 'Amherstburg'];

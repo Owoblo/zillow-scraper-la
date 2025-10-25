@@ -164,6 +164,42 @@ export const REGIONS = {
     ]
   },
 
+  'kwg-area': {
+    name: 'Kitchener-Waterloo-Guelph Area',
+    cities: [
+      {
+        name: "Kitchener",
+        mapBounds: {
+          north: 43.4989487183183,
+          south: 43.36182034264639,
+          east: -80.23952279980469,
+          west: -80.71330820019531
+        },
+        regionId: 792705
+      },
+      {
+        name: "Guelph",
+        mapBounds: {
+          north: 43.60279334032877,
+          south: 43.4659007357489,
+          east: -80.00327529980468,
+          west: -80.47706070019531
+        },
+        regionId: 792670
+      },
+      {
+        name: "Waterloo",
+        mapBounds: {
+          north: 43.55071694432622,
+          south: 43.41370604791276,
+          east: -80.30987029980469,
+          west: -80.78365570019531
+        },
+        regionId: 792687
+      },
+    ]
+  },
+
   'milwaukee-area': {
     name: 'Milwaukee Area',
     cities: [
