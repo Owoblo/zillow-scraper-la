@@ -2155,7 +2155,7 @@ export {
 if (import.meta.url === `file://${process.argv[1]}`) {
   // Check for region argument
   const regionArg = process.argv[2];
-  const regionKeys = regionArg ? [regionArg] : ['windsor-area', 'gta-area', 'gta-extended'];
+  const regionKeys = regionArg ? [regionArg] : ['kwg-area', 'windsor-area', 'gta-area'];
 
   main(regionKeys).catch((e) => {
   console.error("Fatal error:", e);
