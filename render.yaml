@@ -1,4 +1,18 @@
 services:
+  - type: web
+    name: zillow-scraper-trigger
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node -e "console.log('Trigger service ready. Use Render API to trigger KWG scraping.'); setInterval(() => {}, 1000);"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SMARTPROXY_USER
+        sync: false
+      - key: SMARTPROXY_PASS
+        sync: false
+
   - type: cron
     name: zillow-scraper-main
     env: node
