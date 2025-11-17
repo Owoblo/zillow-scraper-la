@@ -6,6 +6,7 @@
     "start": "node zillow.js",
     "dev": "node zillow.js",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:proxy": "node test-proxy.js",
     "scrape:all": "node scripts/run-all-regions.js",
     "scrape:region": "node scripts/run-region.js",
     "list-regions": "node scripts/list-regions.js",

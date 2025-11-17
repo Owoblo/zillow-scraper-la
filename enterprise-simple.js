@@ -8,13 +8,16 @@ import { sendScrapeNotification } from './emailService.js';
 // Enterprise configuration
 const ENTERPRISE_CONFIG = {
   ENABLE_EMAIL_NOTIFICATIONS: true,
-  ENABLE_DETECTION: true,
+  // First run: skip detection (no previous data to compare against)
+  // Subsequent runs: enable detection (compare current vs previous)
+  ENABLE_DETECTION: process.env.FIRST_RUN !== 'true',
   ENABLE_MONITORING: true,
   MAX_CONCURRENT_REGIONS: 2, // Process 2 regions at a time
   REGION_DELAY_MS: 5000, // 5 second delay between regions
   HEALTH_CHECK_INTERVAL: 30000, // 30 seconds
   RETRY_FAILED_CITIES: true,
-  MAX_RETRIES: 3
+  MAX_RETRIES: 3,
+  IS_FIRST_RUN: process.env.FIRST_RUN === 'true'
 };
 
 class SimpleEnterpriseOrchestrator {
@@ -35,7 +38,9 @@ class SimpleEnterpriseOrchestrator {
 
   // Main orchestration function
   async runEnterpriseScrape() {
+    const runType = ENTERPRISE_CONFIG.IS_FIRST_RUN ? 'FIRST RUN (No Detection)' : 'REGULAR RUN (With Detection)';
     console.log('🚀 Starting Simplified Enterprise Zillow Scraper...');
+    console.log(`📋 Run Type: ${runType}`);
     console.log('=' .repeat(60));
     
     this.isRunning = true;
@@ -55,13 +60,21 @@ class SimpleEnterpriseOrchestrator {
       // Phase 3: Process regions with enterprise features
       await this.processRegionsWithEnterpriseFeatures(regions);
 
-      // Phase 4: Run detection if enabled
+      // Phase 4: Run detection if enabled (skip on first run)
       if (ENTERPRISE_CONFIG.ENABLE_DETECTION) {
+        console.log('🔍 Running detection (comparing current vs previous listings)...');
         await this.runEnterpriseDetection();
+      } else {
+        console.log('⏭️  Skipping detection (first run - no previous data to compare)');
+        this.detectionResults = { justListed: [], soldListings: [] };
       }
 
-      // Phase 5: Switch tables
-      await this.switchTablesForNextRun();
+      // Phase 5: Switch tables (only if not first run, or if first run is complete)
+      if (!ENTERPRISE_CONFIG.IS_FIRST_RUN) {
+        await this.switchTablesForNextRun();
+      } else {
+        console.log('⏭️  Skipping table switch (first run - will switch on next run)');
+      }
 
       // Phase 6: Send notifications
       if (ENTERPRISE_CONFIG.ENABLE_EMAIL_NOTIFICATIONS) {
@@ -72,6 +85,9 @@ class SimpleEnterpriseOrchestrator {
       await this.generateFinalReport();
 
       console.log('✅ Simplified Enterprise scrape completed successfully!');
+      if (ENTERPRISE_CONFIG.IS_FIRST_RUN) {
+        console.log('📝 Next run will enable detection and table switching');
+      }
       
     } catch (error) {
       console.error('❌ Enterprise scrape failed:', error);
@@ -232,6 +248,9 @@ class SimpleEnterpriseOrchestrator {
   // Get region key from region name
   getRegionKey(regionName) {
     const keyMap = {
+      'Bay Area': 'bay-area',
+      'Los Angeles Area': 'los-angeles-area',
+      'San Diego Area': 'san-diego-area',
       'Windsor Area': 'windsor-area',
       'Greater Toronto Area': 'gta-area',
       'Milwaukee Area': 'milwaukee-area',
@@ -246,15 +265,32 @@ class SimpleEnterpriseOrchestrator {
     console.log('🔍 Running enterprise detection...');
     
     try {
-      // Use city-by-city detection to prevent timeouts
-      const { runAdvancedDetection } = await import('./advanced-detection.js');
-      const { justListed, soldListings } = await runAdvancedDetection();
+      // Use the detection function from zillow.js
+      const { detectJustListedAndSoldByRegion } = await import('./zillow.js');
       
-      this.detectionResults = { justListed, soldListings };
+      // Get all region keys
+      const { getRegionKeys } = await import('./config/regions.js');
+      const regionKeys = getRegionKeys();
+      
+      let allJustListed = [];
+      let allSoldListings = [];
+      
+      // Process each region
+      for (const regionKey of regionKeys) {
+        try {
+          const { justListed, soldListings } = await detectJustListedAndSoldByRegion(regionKey);
+          allJustListed.push(...justListed);
+          allSoldListings.push(...soldListings);
+        } catch (error) {
+          console.error(`❌ Detection failed for region ${regionKey}:`, error.message);
+        }
+      }
+      
+      this.detectionResults = { justListed: allJustListed, soldListings: allSoldListings };
       
       console.log(`📈 Detection Results:`);
-      console.log(`   - Just-listed properties: ${justListed.length}`);
-      console.log(`   - Sold properties: ${soldListings.length}`);
+      console.log(`   - Just-listed properties: ${allJustListed.length}`);
+      console.log(`   - Sold properties: ${allSoldListings.length}`);
       
     } catch (error) {
       console.error('❌ Detection failed:', error.message);
@@ -313,15 +349,33 @@ class SimpleEnterpriseOrchestrator {
   // Generate city details for email
   generateCityDetails() {
     const cityDetails = [];
+    const cities = getAllCities();
     
-    this.results.forEach(result => {
-      if (result.success) {
+    // Get all successful cities from results
+    const successfulRegions = this.results.filter(r => r.success).map(r => r.region);
+    
+    // For each city in successful regions, get detection results
+    cities.forEach(city => {
+      if (successfulRegions.includes(city.regionName)) {
+        const justListed = this.detectionResults.justListed.filter(l => 
+          l.addresscity === city.name || l.addresscity?.toLowerCase() === city.name.toLowerCase()
+        ).length;
+        const sold = this.detectionResults.soldListings.filter(l => 
+          l.addresscity === city.name || l.addresscity?.toLowerCase() === city.name.toLowerCase()
+        ).length;
+        
+        // Get total listings for this city from results
+        const regionResult = this.results.find(r => r.region === city.regionName);
+        const cityListings = regionResult?.listings?.filter(l => 
+          l.addresscity === city.name || l.addresscity?.toLowerCase() === city.name.toLowerCase()
+        ) || [];
+        
         cityDetails.push({
-          name: result.region,
-          region: result.region,
-          justListed: this.detectionResults.justListed.filter(l => l.addresscity === result.region).length,
-          sold: this.detectionResults.soldListings.filter(l => l.addresscity === result.region).length,
-          total: result.listings?.length || 0
+          name: city.name,
+          region: city.regionName,
+          justListed: justListed,
+          sold: sold,
+          total: cityListings.length || 0
         });
       }
     });

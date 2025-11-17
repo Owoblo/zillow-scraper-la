@@ -98,10 +98,22 @@ export function getLocationBasedEmails(cityName) {
   // Windsor area cities  
   const windsorCities = ['Windsor', 'Kingsville', 'Leamington', 'Lakeshore', 'Essex', 'Tecumseh', 'Lasalle', 'Chatham-Kent', 'Amherstburg'];
   
+  // California cities - Bay Area
+  const bayAreaCities = ['San Francisco', 'Santa Clara', 'Fremont', 'Daly City', 'Concord', 'San Mateo'];
+  
+  // California cities - Los Angeles Area
+  const laAreaCities = ['Los Angeles', 'Glendale', 'Pasadena', 'Santa Clarita', 'Burbank'];
+  
+  // California cities - San Diego Area
+  const sanDiegoAreaCities = ['San Diego', 'Poway', 'Chula Vista', 'Irvine', 'Oceanside', 'Escondido', 'Santee'];
+  
   if (gtaCities.includes(cityName)) {
     return LOCATION_EMAILS.gta;
   } else if (windsorCities.includes(cityName)) {
     return LOCATION_EMAILS.windsor;
+  } else if (bayAreaCities.includes(cityName) || laAreaCities.includes(cityName) || sanDiegoAreaCities.includes(cityName)) {
+    // California cities - use default list or add California-specific emails here
+    return DEFAULT_MARKETING_EMAILS;
   } else {
     // Fallback to default list for unknown cities
     return DEFAULT_MARKETING_EMAILS;
