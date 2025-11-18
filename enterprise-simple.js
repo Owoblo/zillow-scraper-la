@@ -351,24 +351,31 @@ class SimpleEnterpriseOrchestrator {
     const cityDetails = [];
     const cities = getAllCities();
     
-    // Get all successful cities from results
-    const successfulRegions = this.results.filter(r => r.success).map(r => r.region);
+    // Get all successful regions
+    const successfulRegions = this.results.filter(r => r.success);
     
-    // For each city in successful regions, get detection results
+    // For each city, collect data from results
     cities.forEach(city => {
-      if (successfulRegions.includes(city.regionName)) {
-        const justListed = this.detectionResults.justListed.filter(l => 
-          l.addresscity === city.name || l.addresscity?.toLowerCase() === city.name.toLowerCase()
-        ).length;
-        const sold = this.detectionResults.soldListings.filter(l => 
-          l.addresscity === city.name || l.addresscity?.toLowerCase() === city.name.toLowerCase()
-        ).length;
+      const regionResult = successfulRegions.find(r => r.region === city.regionName);
+      
+      if (regionResult && regionResult.listings) {
+        // Count listings per city from the actual listings array
+        // Listings have __meta.areaName or addresscity field
+        const cityListings = regionResult.listings.filter(l => {
+          const cityName = l.__meta?.areaName || l.addresscity || '';
+          return cityName === city.name || cityName?.toLowerCase() === city.name.toLowerCase();
+        });
         
-        // Get total listings for this city from results
-        const regionResult = this.results.find(r => r.region === city.regionName);
-        const cityListings = regionResult?.listings?.filter(l => 
-          l.addresscity === city.name || l.addresscity?.toLowerCase() === city.name.toLowerCase()
-        ) || [];
+        // Count just-listed and sold for this city
+        const justListed = this.detectionResults.justListed.filter(l => {
+          const cityName = l.addresscity || '';
+          return cityName === city.name || cityName?.toLowerCase() === city.name.toLowerCase();
+        }).length;
+        
+        const sold = this.detectionResults.soldListings.filter(l => {
+          const cityName = l.addresscity || '';
+          return cityName === city.name || cityName?.toLowerCase() === city.name.toLowerCase();
+        }).length;
         
         cityDetails.push({
           name: city.name,
@@ -378,6 +385,14 @@ class SimpleEnterpriseOrchestrator {
           total: cityListings.length || 0
         });
       }
+    });
+    
+    // Sort by region, then by city name
+    cityDetails.sort((a, b) => {
+      if (a.region !== b.region) {
+        return a.region.localeCompare(b.region);
+      }
+      return a.name.localeCompare(b.name);
     });
     
     return cityDetails;

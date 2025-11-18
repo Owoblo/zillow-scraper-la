@@ -191,21 +191,27 @@ function createEmailHTML(results) {
               <h3>🏙️ City-by-City Breakdown</h3>
               ${Object.entries(citiesByRegion).map(([region, cities]) => `
                 <div class="region-section">
-                  <div class="region-header">${region.replace('-', ' ').toUpperCase()}</div>
-                  <div class="city-grid">
-                    ${cities.map(city => `
-                      <div class="city-card">
-                        <div class="city-name">${city.name}</div>
-                        <div class="city-stats">
-                          <span class="just-listed">📈 ${city.justListed || 0} just-listed</span>
-                          <span class="sold">🏠 ${city.sold || 0} sold</span>
-                        </div>
-                        <div class="city-stats">
-                          <span class="total">📊 ${city.total || 0} total</span>
-                        </div>
-                      </div>
-                    `).join('')}
-                  </div>
+                  <div class="region-header">${region.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                    <thead>
+                      <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                        <th style="padding: 12px; text-align: left; font-weight: bold; color: #495057;">City</th>
+                        <th style="padding: 12px; text-align: center; font-weight: bold; color: #495057;">Total Listings</th>
+                        <th style="padding: 12px; text-align: center; font-weight: bold; color: #28a745;">Just Listed</th>
+                        <th style="padding: 12px; text-align: center; font-weight: bold; color: #dc3545;">Sold</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${cities.map((city, index) => `
+                        <tr style="border-bottom: 1px solid #dee2e6; ${index % 2 === 0 ? 'background: #ffffff;' : 'background: #f8f9fa;'}">
+                          <td style="padding: 12px; font-weight: 600; color: #212529;">${city.name}</td>
+                          <td style="padding: 12px; text-align: center; color: #6c757d; font-weight: bold;">${city.total || 0}</td>
+                          <td style="padding: 12px; text-align: center; color: #28a745; font-weight: bold; font-size: 16px;">${city.justListed || 0}</td>
+                          <td style="padding: 12px; text-align: center; color: #dc3545; font-weight: bold; font-size: 16px;">${city.sold || 0}</td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
                 </div>
               `).join('')}
             </div>
@@ -310,10 +316,16 @@ function createEmailText(results) {
       });
 
       Object.entries(citiesByRegion).forEach(([region, cities]) => {
-        text += `${region.replace('-', ' ').toUpperCase()}:\n`;
-        text += `${'='.repeat(region.length)}\n`;
+        text += `${region.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:\n`;
+        text += `${'='.repeat(region.length + 5)}\n`;
+        text += `City Name                | Total Listings | Just Listed | Sold\n`;
+        text += `${'-'.repeat(70)}\n`;
         cities.forEach(city => {
-          text += `  ${city.name}: ${city.justListed || 0} just-listed, ${city.sold || 0} sold (${city.total || 0} total)\n`;
+          const name = city.name.padEnd(24);
+          const total = String(city.total || 0).padStart(14);
+          const justListed = String(city.justListed || 0).padStart(12);
+          const sold = String(city.sold || 0).padStart(4);
+          text += `${name} | ${total} | ${justListed} | ${sold}\n`;
         });
         text += `\n`;
       });
