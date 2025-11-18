@@ -57,23 +57,25 @@ class SimpleEnterpriseOrchestrator {
       console.log(`📍 Processing ${cities.length} cities across ${regions.length} regions...`);
       console.log(`🏙️ Regions: ${regions.map(r => r.name).join(', ')}`);
 
-      // Phase 3: Process regions with enterprise features
+      // Phase 3: Switch tables FIRST (before scraping) - preserve old data for detection
+      // This must happen BEFORE scraping so we can compare old vs new
+      if (!ENTERPRISE_CONFIG.IS_FIRST_RUN) {
+        console.log('🔄 Switching tables FIRST (preserving old data for detection)...');
+        await this.switchTablesForNextRun();
+      } else {
+        console.log('⏭️  Skipping table switch (first run - will switch on next run)');
+      }
+
+      // Phase 4: Process regions with enterprise features (scrape new listings)
       await this.processRegionsWithEnterpriseFeatures(regions);
 
-      // Phase 4: Run detection if enabled (skip on first run)
+      // Phase 5: Run detection if enabled (compare NEW current vs OLD previous)
       if (ENTERPRISE_CONFIG.ENABLE_DETECTION) {
-        console.log('🔍 Running detection (comparing current vs previous listings)...');
+        console.log('🔍 Running detection (comparing NEW current vs OLD previous listings)...');
         await this.runEnterpriseDetection();
       } else {
         console.log('⏭️  Skipping detection (first run - no previous data to compare)');
         this.detectionResults = { justListed: [], soldListings: [] };
-      }
-
-      // Phase 5: Switch tables (only if not first run, or if first run is complete)
-      if (!ENTERPRISE_CONFIG.IS_FIRST_RUN) {
-        await this.switchTablesForNextRun();
-      } else {
-        console.log('⏭️  Skipping table switch (first run - will switch on next run)');
       }
 
       // Phase 6: Send notifications
@@ -265,6 +267,30 @@ class SimpleEnterpriseOrchestrator {
     console.log('🔍 Running enterprise detection...');
     
     try {
+      // First, check table status for debugging
+      const { createClient } = await import("@supabase/supabase-js");
+      const supabase = createClient(
+        'https://idbyrtwdeeruiutoukct.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlkYnlydHdkZWVydWl1dG91a2N0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgyNTk0NjQsImV4cCI6MjA1MzgzNTQ2NH0.Hw0oJmIuDGdITM3TZkMWeXkHy53kO4i8TCJMxb6_hko'
+      );
+      
+      const { count: currentCount } = await supabase
+        .from('current_listings')
+        .select('*', { count: 'exact', head: true });
+      
+      const { count: previousCount } = await supabase
+        .from('previous_listings')
+        .select('*', { count: 'exact', head: true });
+      
+      console.log(`📊 Table status before detection:`);
+      console.log(`   - current_listings: ${currentCount || 0} listings`);
+      console.log(`   - previous_listings: ${previousCount || 0} listings`);
+      
+      if (previousCount === 0) {
+        console.warn(`⚠️  WARNING: previous_listings is empty! Detection may not work correctly.`);
+        console.warn(`   This might be because tables weren't switched properly.`);
+      }
+      
       // Use the detection function from zillow.js
       const { detectJustListedAndSoldByRegion } = await import('./zillow.js');
       
@@ -278,9 +304,11 @@ class SimpleEnterpriseOrchestrator {
       // Process each region
       for (const regionKey of regionKeys) {
         try {
+          console.log(`   Detecting for region: ${regionKey}...`);
           const { justListed, soldListings } = await detectJustListedAndSoldByRegion(regionKey);
           allJustListed.push(...justListed);
           allSoldListings.push(...soldListings);
+          console.log(`   ${regionKey}: ${justListed.length} just-listed, ${soldListings.length} sold`);
         } catch (error) {
           console.error(`❌ Detection failed for region ${regionKey}:`, error.message);
         }
@@ -288,12 +316,20 @@ class SimpleEnterpriseOrchestrator {
       
       this.detectionResults = { justListed: allJustListed, soldListings: allSoldListings };
       
-      console.log(`📈 Detection Results:`);
+      console.log(`\n📈 Detection Results Summary:`);
       console.log(`   - Just-listed properties: ${allJustListed.length}`);
       console.log(`   - Sold properties: ${allSoldListings.length}`);
       
+      if (allJustListed.length > 0) {
+        console.log(`   - Sample just-listed cities: ${[...new Set(allJustListed.slice(0, 5).map(l => l.addresscity || l.city))].join(', ')}`);
+      }
+      if (allSoldListings.length > 0) {
+        console.log(`   - Sample sold cities: ${[...new Set(allSoldListings.slice(0, 5).map(l => l.addresscity || l.city))].join(', ')}`);
+      }
+      
     } catch (error) {
       console.error('❌ Detection failed:', error.message);
+      console.error('   Stack:', error.stack);
       this.detectionResults = { justListed: [], soldListings: [] };
     }
   }
@@ -354,6 +390,9 @@ class SimpleEnterpriseOrchestrator {
     // Get all successful regions
     const successfulRegions = this.results.filter(r => r.success);
     
+    console.log(`\n📊 Generating city details for email...`);
+    console.log(`   Detection results: ${this.detectionResults.justListed.length} just-listed, ${this.detectionResults.soldListings.length} sold`);
+    
     // For each city, collect data from results
     cities.forEach(city => {
       const regionResult = successfulRegions.find(r => r.region === city.regionName);
@@ -367,14 +406,15 @@ class SimpleEnterpriseOrchestrator {
         });
         
         // Count just-listed and sold for this city
+        // Check both addresscity and city fields for matching
         const justListed = this.detectionResults.justListed.filter(l => {
-          const cityName = l.addresscity || '';
-          return cityName === city.name || cityName?.toLowerCase() === city.name.toLowerCase();
+          const listingCity = l.addresscity || l.city || '';
+          return listingCity === city.name || listingCity?.toLowerCase() === city.name.toLowerCase();
         }).length;
         
         const sold = this.detectionResults.soldListings.filter(l => {
-          const cityName = l.addresscity || '';
-          return cityName === city.name || cityName?.toLowerCase() === city.name.toLowerCase();
+          const listingCity = l.addresscity || l.city || '';
+          return listingCity === city.name || listingCity?.toLowerCase() === city.name.toLowerCase();
         }).length;
         
         cityDetails.push({
@@ -384,6 +424,11 @@ class SimpleEnterpriseOrchestrator {
           sold: sold,
           total: cityListings.length || 0
         });
+        
+        // Debug logging for cities with detection results
+        if (justListed > 0 || sold > 0) {
+          console.log(`   ${city.name}: ${justListed} just-listed, ${sold} sold, ${cityListings.length} total`);
+        }
       }
     });
     
@@ -394,6 +439,8 @@ class SimpleEnterpriseOrchestrator {
       }
       return a.name.localeCompare(b.name);
     });
+    
+    console.log(`   Generated details for ${cityDetails.length} cities`);
     
     return cityDetails;
   }
