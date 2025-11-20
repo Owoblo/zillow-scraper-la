@@ -57,25 +57,27 @@ class SimpleEnterpriseOrchestrator {
       console.log(`📍 Processing ${cities.length} cities across ${regions.length} regions...`);
       console.log(`🏙️ Regions: ${regions.map(r => r.name).join(', ')}`);
 
-      // Phase 3: Switch tables FIRST (before scraping) - preserve old data for detection
-      // This must happen BEFORE scraping so we can compare old vs new
-      if (!ENTERPRISE_CONFIG.IS_FIRST_RUN) {
-        console.log('🔄 Switching tables FIRST (preserving old data for detection)...');
-        await this.switchTablesForNextRun();
-      } else {
-        console.log('⏭️  Skipping table switch (first run - will switch on next run)');
-      }
-
-      // Phase 4: Process regions with enterprise features (scrape new listings)
+      // Phase 3: Process regions with enterprise features (scrape new listings FIRST)
       await this.processRegionsWithEnterpriseFeatures(regions);
 
-      // Phase 5: Run detection if enabled (compare NEW current vs OLD previous)
+      // Phase 4: Run detection if enabled (compare NEW current vs OLD previous)
+      // This compares the freshly scraped data (current) against the previous run's data (previous)
       if (ENTERPRISE_CONFIG.ENABLE_DETECTION) {
         console.log('🔍 Running detection (comparing NEW current vs OLD previous listings)...');
         await this.runEnterpriseDetection();
       } else {
         console.log('⏭️  Skipping detection (first run - no previous data to compare)');
         this.detectionResults = { justListed: [], soldListings: [] };
+      }
+
+      // Phase 5: Switch tables AFTER detection (prepare for NEXT run)
+      // This copies current → previous so the NEXT run can compare against today's data
+      if (!ENTERPRISE_CONFIG.IS_FIRST_RUN) {
+        console.log('🔄 Switching tables AFTER detection (preparing for NEXT run)...');
+        await this.switchTablesForNextRun();
+      } else {
+        console.log('🔄 Switching tables (first run - preparing for NEXT run)...');
+        await this.switchTablesForNextRun();
       }
 
       // Phase 6: Send notifications
