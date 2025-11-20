@@ -156,47 +156,58 @@ class SimpleEnterpriseOrchestrator {
   // Process regions with enterprise features
   async processRegionsWithEnterpriseFeatures(regions) {
     console.log('🏗️ Processing regions with enterprise features...');
-    
+
     const regionKeys = regions.map(r => r.name);
     const results = [];
-    
+    const allListings = []; // Collect all listings for storage
+
     // Process regions in batches for better resource management
     for (let i = 0; i < regions.length; i += ENTERPRISE_CONFIG.MAX_CONCURRENT_REGIONS) {
       const batch = regions.slice(i, i + ENTERPRISE_CONFIG.MAX_CONCURRENT_REGIONS);
-      
+
       console.log(`\n📊 Processing batch ${Math.floor(i / ENTERPRISE_CONFIG.MAX_CONCURRENT_REGIONS) + 1}: ${batch.map(r => r.name).join(', ')}`);
-      
+
       // Process batch concurrently
       const batchPromises = batch.map(async (region) => {
         try {
           const regionKey = this.getRegionKey(region.name);
           console.log(`🏙️ Processing ${region.name} (${region.cities.length} cities)...`);
-          
+
           const result = await processRegionsConcurrently([regionKey]);
           this.metrics.regionsProcessed++;
-          
+
           if (result && result.length > 0) {
             const regionResult = result[0];
             this.metrics.totalListings += regionResult.listings?.length || 0;
             this.metrics.successfulCities += regionResult.cities || 0;
-            
+
             console.log(`✅ ${region.name}: ${regionResult.listings?.length || 0} listings processed`);
             return { success: true, region: region.name, ...regionResult };
           } else {
             console.log(`❌ ${region.name}: No results returned`);
             return { success: false, region: region.name, error: 'No results returned' };
           }
-          
+
         } catch (error) {
           console.error(`❌ ${region.name}: Error processing region:`, error.message);
           this.metrics.failedCities++;
           return { success: false, region: region.name, error: error.message };
         }
       });
-      
+
       const batchResults = await Promise.allSettled(batchPromises);
-      results.push(...batchResults.map(r => r.status === 'fulfilled' ? r.value : { success: false, error: r.reason }));
-      
+      const fulfilledResults = batchResults
+        .map(r => r.status === 'fulfilled' ? r.value : { success: false, error: r.reason });
+
+      results.push(...fulfilledResults);
+
+      // Collect listings from successful regions
+      fulfilledResults.forEach(result => {
+        if (result.success && result.listings) {
+          allListings.push(...result.listings);
+        }
+      });
+
       // Delay between batches with randomization
       if (i + ENTERPRISE_CONFIG.MAX_CONCURRENT_REGIONS < regions.length) {
         const randomDelay = ENTERPRISE_CONFIG.REGION_DELAY_MS + Math.floor(Math.random() * 5000); // 5-10 seconds
@@ -204,10 +215,10 @@ class SimpleEnterpriseOrchestrator {
         await new Promise(resolve => setTimeout(resolve, randomDelay));
       }
     }
-    
+
     this.results = results;
     console.log(`✅ All regions processed: ${results.filter(r => r.success).length}/${results.length} successful`);
-    
+
     // Retry failed cities if enabled
     if (ENTERPRISE_CONFIG.RETRY_FAILED_CITIES) {
       const failedResults = results.filter(r => !r.success);
@@ -215,6 +226,26 @@ class SimpleEnterpriseOrchestrator {
         console.log(`🔄 Retrying ${failedResults.length} failed regions...`);
         await this.retryFailedRegions(failedResults);
       }
+    }
+
+    // 🔥 CRITICAL: Store all listings in database (THIS WAS MISSING!)
+    if (allListings.length > 0) {
+      console.log(`\n💾 Storing ${allListings.length} listings in database...`);
+
+      const { mapItemToRow, upsertListingsWithValidation } = await import('./zillow.js');
+
+      // Map listings to database format
+      const mapped = allListings.map((it) =>
+        mapItemToRow(it, it.__meta?.areaName, it.__meta?.page, it.__meta?.runId, it.__meta?.regionName)
+      ).filter(listing => listing !== null); // Remove null entries
+
+      console.log(`📊 Mapped ${allListings.length} listings to ${mapped.length} valid records`);
+
+      // Store in current_listings table
+      await upsertListingsWithValidation(mapped, 'current_listings');
+      console.log(`✅ Successfully stored ${mapped.length} listings in current_listings table`);
+    } else {
+      console.log(`⚠️  No listings to store`);
     }
   }
 
