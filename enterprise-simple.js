@@ -72,12 +72,15 @@ class SimpleEnterpriseOrchestrator {
 
       // Phase 5: Switch tables AFTER detection (prepare for NEXT run)
       // This copies current → previous so the NEXT run can compare against today's data
+      // IMPORTANT: Only switch California regions to preserve Windsor/Toronto data!
+      const californiaRegions = ['Bay Area', 'Los Angeles Area', 'San Diego Area'];
+
       if (!ENTERPRISE_CONFIG.IS_FIRST_RUN) {
         console.log('🔄 Switching tables AFTER detection (preparing for NEXT run)...');
-        await this.switchTablesForNextRun();
+        await this.switchTablesForNextRun(californiaRegions);
       } else {
         console.log('🔄 Switching tables (first run - preparing for NEXT run)...');
-        await this.switchTablesForNextRun();
+        await this.switchTablesForNextRun(californiaRegions);
       }
 
       // Phase 6: Send notifications
@@ -367,12 +370,12 @@ class SimpleEnterpriseOrchestrator {
     }
   }
 
-  // Switch tables for next run
-  async switchTablesForNextRun() {
+  // Switch tables for next run (region-aware)
+  async switchTablesForNextRun(regionFilter = null) {
     console.log('🔄 Switching tables for next run...');
-    
+
     try {
-      await switchTables();
+      await switchTables(regionFilter);
       console.log('✅ Tables switched successfully');
     } catch (error) {
       console.error('❌ Error switching tables:', error.message);

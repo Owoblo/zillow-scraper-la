@@ -892,18 +892,27 @@ async function detectJustListedAndSoldByCity(cityName) {
   return { justListed: [], soldListings: [] };
 }
 
-async function switchTables() {
+async function switchTables(regionFilter = null) {
   console.log("\n🔄 Switching tables for next run...");
-  
+
+  if (regionFilter && regionFilter.length > 0) {
+    console.log(`📍 Region-specific switch: ${regionFilter.join(', ')}`);
+  } else {
+    console.log("🌎 Global switch: all regions");
+  }
+
   try {
     // Use a more efficient approach: copy data in smaller chunks
     console.log("📋 Getting current listings count...");
-    
-    // First, get the count to see how much data we're dealing with
-    const { count, error: countError } = await supabase
-      .from(CURRENT_LISTINGS_TABLE)
-      .select("*", { count: "exact", head: true });
-    
+
+    // Build query with optional region filter
+    let countQuery = supabase.from(CURRENT_LISTINGS_TABLE).select("*", { count: "exact", head: true });
+    if (regionFilter && regionFilter.length > 0) {
+      countQuery = countQuery.in('region', regionFilter);
+    }
+
+    const { count, error: countError } = await countQuery;
+
     if (countError) throw countError;
 
     if (!count || count === 0) {
@@ -913,14 +922,20 @@ async function switchTables() {
 
     console.log(`📋 Found ${count} listings to copy to previous table...`);
 
-    // Clear previous listings table first (more robust approach)
+    // Clear previous listings table first (region-aware!)
     console.log("🗑️  Clearing previous listings table...");
-    
-    // First, try to delete all records
-    const { error: clearPrevError } = await supabase
-      .from(PREVIOUS_LISTINGS_TABLE)
-      .delete()
-      .neq('zpid', '');
+
+    // Only delete records for specified regions (or all if no filter)
+    let deleteQuery = supabase.from(PREVIOUS_LISTINGS_TABLE).delete();
+    if (regionFilter && regionFilter.length > 0) {
+      deleteQuery = deleteQuery.in('region', regionFilter);
+      console.log(`   Only deleting: ${regionFilter.join(', ')}`);
+    } else {
+      deleteQuery = deleteQuery.neq('zpid', '');
+      console.log(`   Deleting: ALL regions`);
+    }
+
+    const { error: clearPrevError } = await deleteQuery;
     
     if (clearPrevError) {
       console.warn("⚠️  Warning: Could not clear previous table:", clearPrevError.message);
@@ -964,10 +979,17 @@ async function switchTables() {
       // Retry logic for each batch
       while (!batchSuccess && retryCount < maxRetries) {
         try {
-          // Fetch a batch of data
-          const { data: batchData, error: fetchError } = await supabase
+          // Fetch a batch of data (region-aware)
+          let batchQuery = supabase
             .from(CURRENT_LISTINGS_TABLE)
-            .select("*")
+            .select("*");
+
+          // Apply region filter if specified
+          if (regionFilter && regionFilter.length > 0) {
+            batchQuery = batchQuery.in('region', regionFilter);
+          }
+
+          const { data: batchData, error: fetchError } = await batchQuery
             .range(offset, offset + batchSize - 1);
           
           if (fetchError) {
@@ -1051,12 +1073,19 @@ async function switchTables() {
     }
     
     // CRITICAL: Always clear current table to prevent data corruption
-    // This ensures new records can be inserted cleanly
+    // This ensures new records can be inserted cleanly (region-aware!)
     console.log("🗑️  Clearing current listings table...");
-    const { error: clearCurrentError } = await supabase
-      .from(CURRENT_LISTINGS_TABLE)
-      .delete()
-      .neq('zpid', '');
+
+    let clearCurrentQuery = supabase.from(CURRENT_LISTINGS_TABLE).delete();
+    if (regionFilter && regionFilter.length > 0) {
+      clearCurrentQuery = clearCurrentQuery.in('region', regionFilter);
+      console.log(`   Only clearing: ${regionFilter.join(', ')}`);
+    } else {
+      clearCurrentQuery = clearCurrentQuery.neq('zpid', '');
+      console.log(`   Clearing: ALL regions`);
+    }
+
+    const { error: clearCurrentError } = await clearCurrentQuery;
     
     if (clearCurrentError) {
       console.error("❌ CRITICAL: Failed to clear current table:", clearCurrentError.message);
