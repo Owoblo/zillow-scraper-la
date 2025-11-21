@@ -301,7 +301,7 @@ class SimpleEnterpriseOrchestrator {
   // Run enterprise detection with city-by-city processing
   async runEnterpriseDetection() {
     console.log('🔍 Running enterprise detection...');
-    
+
     try {
       // First, check table status for debugging
       const { createClient } = await import("@supabase/supabase-js");
@@ -309,64 +309,97 @@ class SimpleEnterpriseOrchestrator {
         'https://idbyrtwdeeruiutoukct.supabase.co',
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlkYnlydHdkZWVydWl1dG91a2N0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgyNTk0NjQsImV4cCI6MjA1MzgzNTQ2NH0.Hw0oJmIuDGdITM3TZkMWeXkHy53kO4i8TCJMxb6_hko'
       );
-      
+
       const { count: currentCount } = await supabase
         .from('current_listings')
         .select('*', { count: 'exact', head: true });
-      
+
       const { count: previousCount } = await supabase
         .from('previous_listings')
         .select('*', { count: 'exact', head: true });
-      
+
       console.log(`📊 Table status before detection:`);
       console.log(`   - current_listings: ${currentCount || 0} listings`);
       console.log(`   - previous_listings: ${previousCount || 0} listings`);
-      
+
       if (previousCount === 0) {
         console.warn(`⚠️  WARNING: previous_listings is empty! Detection may not work correctly.`);
         console.warn(`   This might be because tables weren't switched properly.`);
       }
-      
-      // Use the detection function from zillow.js
-      const { detectJustListedAndSoldByRegion } = await import('./zillow.js');
-      
-      // Get all region keys
-      const { getRegionKeys } = await import('./config/regions.js');
-      const regionKeys = getRegionKeys();
-      
+
+      // City-level detection (like Canadian scraper for detailed breakdown)
+      console.log('\n📊 Collecting city-by-city detection results for email...');
+
+      const { getAllCities } = await import('./config/regions.js');
+      const cities = getAllCities();
+
       let allJustListed = [];
       let allSoldListings = [];
-      
-      // Process each region
-      for (const regionKey of regionKeys) {
+      this.cityDetails = [];  // Store city details for email
+
+      // Process each city individually
+      for (const city of cities) {
         try {
-          console.log(`   Detecting for region: ${regionKey}...`);
-          const { justListed, soldListings } = await detectJustListedAndSoldByRegion(regionKey);
+          console.log(`🔍 Detecting changes for ${city.name}...`);
+
+          // Get city-specific data
+          const { data: currentCityListings } = await supabase
+            .from('current_listings')
+            .select('*')
+            .eq('city', city.name);
+
+          const { data: previousCityListings } = await supabase
+            .from('previous_listings')
+            .select('*')
+            .eq('city', city.name);
+
+          console.log(`📊 ${city.name}: Current=${currentCityListings?.length || 0}, Previous=${previousCityListings?.length || 0}`);
+
+          // Detect just-listed and sold
+          const currentZpids = new Set((currentCityListings || []).map(l => l.zpid));
+          const previousZpids = new Set((previousCityListings || []).map(l => l.zpid));
+
+          const justListed = (currentCityListings || []).filter(l => !previousZpids.has(l.zpid));
+          const sold = (previousCityListings || []).filter(l => !currentZpids.has(l.zpid));
+
+          console.log(`📊 ${city.name}: ${justListed.length} just-listed, ${sold.length} sold`);
+
+          if (sold.length > 0) {
+            console.log(`📋 Sample sold listings for ${city.name}:`);
+            sold.slice(0, 3).forEach((listing, index) => {
+              console.log(`  ${index + 1}. ZPID: ${listing.zpid} - ${listing.addressstreet || listing.address} - ${listing.addresscity}`);
+            });
+          }
+
+          // Store results
           allJustListed.push(...justListed);
-          allSoldListings.push(...soldListings);
-          console.log(`   ${regionKey}: ${justListed.length} just-listed, ${soldListings.length} sold`);
+          allSoldListings.push(...sold);
+
+          // Track city details for email
+          this.cityDetails.push({
+            name: city.name,
+            region: city.regionName,
+            justListed: justListed.length,
+            sold: sold.length,
+            total: (currentCityListings || []).length
+          });
+
         } catch (error) {
-          console.error(`❌ Detection failed for region ${regionKey}:`, error.message);
+          console.error(`❌ Error detecting changes for ${city.name}:`, error.message);
         }
       }
-      
+
       this.detectionResults = { justListed: allJustListed, soldListings: allSoldListings };
-      
-      console.log(`\n📈 Detection Results Summary:`);
-      console.log(`   - Just-listed properties: ${allJustListed.length}`);
-      console.log(`   - Sold properties: ${allSoldListings.length}`);
-      
-      if (allJustListed.length > 0) {
-        console.log(`   - Sample just-listed cities: ${[...new Set(allJustListed.slice(0, 5).map(l => l.addresscity || l.city))].join(', ')}`);
-      }
-      if (allSoldListings.length > 0) {
-        console.log(`   - Sample sold cities: ${[...new Set(allSoldListings.slice(0, 5).map(l => l.addresscity || l.city))].join(', ')}`);
-      }
-      
+
+      console.log(`\n📈 CITY-LEVEL DETECTION RESULTS:`);
+      console.log(`   Total just-listed: ${allJustListed.length}`);
+      console.log(`   Total sold: ${allSoldListings.length}`);
+
     } catch (error) {
       console.error('❌ Detection failed:', error.message);
       console.error('   Stack:', error.stack);
       this.detectionResults = { justListed: [], soldListings: [] };
+      this.cityDetails = [];
     }
   }
 
@@ -420,51 +453,18 @@ class SimpleEnterpriseOrchestrator {
 
   // Generate city details for email
   generateCityDetails() {
-    const cityDetails = [];
-    const cities = getAllCities();
-    
-    // Get all successful regions
-    const successfulRegions = this.results.filter(r => r.success);
-    
     console.log(`\n📊 Generating city details for email...`);
     console.log(`   Detection results: ${this.detectionResults.justListed.length} just-listed, ${this.detectionResults.soldListings.length} sold`);
-    
-    // For each city, collect data from results
-    cities.forEach(city => {
-      const regionResult = successfulRegions.find(r => r.region === city.regionName);
-      
-      if (regionResult && regionResult.listings) {
-        // Count listings per city from the actual listings array
-        // Listings have __meta.areaName or addresscity field
-        const cityListings = regionResult.listings.filter(l => {
-          const cityName = l.__meta?.areaName || l.addresscity || '';
-          return cityName === city.name || cityName?.toLowerCase() === city.name.toLowerCase();
-        });
-        
-        // Count just-listed and sold for this city
-        // Check both addresscity and city fields for matching
-        const justListed = this.detectionResults.justListed.filter(l => {
-          const listingCity = l.addresscity || l.city || '';
-          return listingCity === city.name || listingCity?.toLowerCase() === city.name.toLowerCase();
-        }).length;
-        
-        const sold = this.detectionResults.soldListings.filter(l => {
-          const listingCity = l.addresscity || l.city || '';
-          return listingCity === city.name || listingCity?.toLowerCase() === city.name.toLowerCase();
-        }).length;
-        
-        cityDetails.push({
-          name: city.name,
-          region: city.regionName,
-          justListed: justListed,
-          sold: sold,
-          total: cityListings.length || 0
-        });
-        
-        // Debug logging for cities with detection results
-        if (justListed > 0 || sold > 0) {
-          console.log(`   ${city.name}: ${justListed} just-listed, ${sold} sold, ${cityListings.length} total`);
-        }
+
+    // Use the city details that were already collected during detection
+    const cityDetails = this.cityDetails || [];
+
+    console.log(`   Generated details for ${cityDetails.length} cities`);
+
+    // Log cities with activity
+    cityDetails.forEach(city => {
+      if (city.justListed > 0 || city.sold > 0) {
+        console.log(`   ${city.name}: ${city.justListed} just-listed, ${city.sold} sold`);
       }
     });
     
