@@ -331,14 +331,23 @@ class SimpleEnterpriseOrchestrator {
       console.log('\n📊 Collecting city-by-city detection results for email...');
 
       const { getAllCities } = await import('./config/regions.js');
-      const cities = getAllCities();
+      const allCities = getAllCities();
+
+      // CRITICAL: Only detect for California cities to avoid false sold detections!
+      const californiaCities = allCities.filter(city =>
+        city.regionName === 'Bay Area' ||
+        city.regionName === 'Los Angeles Area' ||
+        city.regionName === 'San Diego Area'
+      );
+
+      console.log(`📍 Detecting for ${californiaCities.length} California cities only (ignoring ${allCities.length - californiaCities.length} non-California cities)`);
 
       let allJustListed = [];
       let allSoldListings = [];
       this.cityDetails = [];  // Store city details for email
 
-      // Process each city individually
-      for (const city of cities) {
+      // Process each California city individually
+      for (const city of californiaCities) {
         try {
           console.log(`🔍 Detecting changes for ${city.name}...`);
 
