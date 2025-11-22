@@ -2110,9 +2110,11 @@ async function main(regionKeys = null, skipDetection = false) {
     results.cityDetails = cityDetails;
 
     // Step 7: Switch tables AFTER detection to prepare for next run
+    // IMPORTANT: Only switch California regions to preserve Canadian data!
     if (!skipDetection) {
       console.log("\n🔄 Switching tables AFTER detection to prepare for next run...");
-      await switchTables();
+      const californiaRegions = ['Bay Area', 'Los Angeles Area'];
+      await switchTables(californiaRegions);
       results.tableSwitchPerformed = true;
     }
 
