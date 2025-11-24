@@ -7,7 +7,7 @@ dotenv.config();
 const DECODO_STATIC_IP = {
   host: 'isp.decodo.com',
   port: 10001,
-  username: 'user-spob1kyjck-ip-82.23.111.200',
+  username: 'user-spob1kyjck-ip-45.58.216.179',
   password: 'sma7j92aJikN~zIBc2'
 };
 
