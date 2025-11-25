@@ -53,7 +53,8 @@ async function launchBrowser(proxy) {
 
   console.log(`🌐 Launching browser with Decodo IP: ${proxy.ip} (${proxy.country})`);
 
-  const browserInstance = await puppeteer.launch({
+  // Browser launch options
+  const launchOptions = {
     headless: true,
     args: [
       `--proxy-server=${proxyUrl}`,
@@ -63,12 +64,27 @@ async function launchBrowser(proxy) {
       '--disable-accelerated-2d-canvas',
       '--disable-gpu',
       '--window-size=1920,1080',
-      '--disable-blink-features=AutomationControlled'
+      '--disable-blink-features=AutomationControlled',
+      '--single-process',
+      '--no-zygote'
     ],
     ignoreHTTPSErrors: true
-  });
+  };
 
-  return { browser: browserInstance, proxy };
+  // In production, try to use bundled Chrome or skip download
+  if (process.env.NODE_ENV === 'production') {
+    // Don't specify executablePath - let Puppeteer find Chrome automatically
+    // This works better with the postinstall script
+    console.log('🏭 Production mode - using Puppeteer bundled Chrome');
+  }
+
+  try {
+    const browserInstance = await puppeteer.launch(launchOptions);
+    return { browser: browserInstance, proxy };
+  } catch (error) {
+    console.error('❌ Failed to launch browser:', error.message);
+    throw error;
+  }
 }
 
 /**
