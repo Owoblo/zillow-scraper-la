@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "zillow.js",
   "scripts": {
+    "postinstall": "npx puppeteer browsers install chrome",
     "start": "node zillow.js",
     "dev": "node zillow.js",
     "test": "echo \"Error: no test specified\" && exit 1",
