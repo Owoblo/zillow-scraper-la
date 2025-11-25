@@ -3,13 +3,13 @@ services:
     name: zillow-scraper-trigger
     env: node
     plan: free
-    buildCommand: ./render-build.sh
+    buildCommand: npm install
     startCommand: node -e "console.log('Trigger service ready. Use Render API to trigger KWG scraping.'); setInterval(() => {}, 1000);"
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
-        value: false
+      - key: SCRAPERAPI_KEY
+        sync: false
       - key: SMARTPROXY_USER
         sync: false
       - key: SMARTPROXY_PASS
@@ -19,14 +19,14 @@ services:
     name: zillow-scraper-la-region
     env: node
     plan: free
-    buildCommand: ./render-build.sh
+    buildCommand: npm install
     startCommand: npm run enterprise
     schedule: "0 13,1 * * *"  # Run daily at 8 AM EST (1 PM UTC) and 8 PM EST (1 AM UTC)
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
-        value: false
+      - key: SCRAPERAPI_KEY
+        sync: false
       - key: FIRST_RUN
         value: "false"  # Set to "true" for first run, then change to "false" for subsequent runs
       - key: SMARTPROXY_USER
@@ -44,14 +44,14 @@ services:
     name: zillow-scraper-delayed-retry
     env: node
     plan: free
-    buildCommand: ./render-build.sh
+    buildCommand: npm install
     startCommand: npm run delayed:retry
     schedule: "30 13,1 * * *"  # Run 30 minutes after main scrape (8:30 AM EST and 8:30 PM EST)
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
-        value: false
+      - key: SCRAPERAPI_KEY
+        sync: false
       - key: SMARTPROXY_USER
         sync: false
       - key: SMARTPROXY_PASS

@@ -1,12 +1,12 @@
 // zillow.js - Real-time Zillow Scraper with Email Notifications
 import dotenv from 'dotenv';
 dotenv.config();
+import fetch from "node-fetch";
 import fs from "graceful-fs";
 import { createClient } from "@supabase/supabase-js";
 import { v4 as uuidv4 } from "uuid";
 import { sendScrapeNotification } from "./emailService.js";
 import { REGIONS, getAllCities, getCitiesForRegion, getRegionKeys } from "./config/regions.js";
-import { getNewPage, closeBrowser } from "./browserManager.js";
 // Enhanced data mapping and validation functions (integrated from scraper-improvements.js)
 
 
@@ -1137,92 +1137,66 @@ async function switchTables(regionFilter = null) {
 }
 
 async function fetchSearchPage(area, page) {
-  const { page: browserPage, proxy } = await getNewPage();
+  console.log(`🔍 Fetching ${area.name} page ${page} via ScraperAPI...`);
+
+  // Prepare search query
+  const searchQueryState = {
+    pagination: { currentPage: page },
+    isMapVisible: true,
+    mapBounds: area.mapBounds,
+    regionSelection: [{ regionId: area.regionId, regionType: 6 }],
+    filterState: {
+      sortSelection: { value: "globalrelevanceex" },
+      isAllHomes: { value: true },
+    },
+    isEntirePlaceForRent: true,
+    isRoomForRent: false,
+    isListVisible: true,
+  };
+
+  const requestBody = JSON.stringify({
+    searchQueryState,
+    wants: { cat1: ["listResults", "mapResults"], cat2: ["total"] },
+  });
 
   try {
-    console.log(`🌐 Using Decodo IP: ${proxy.ip} (${proxy.country})`);
+    // Use ScraperAPI to bypass bot detection
+    const scraperApiUrl = `http://api.scraperapi.com?api_key=${process.env.SCRAPERAPI_KEY}&url=${encodeURIComponent('https://www.zillow.com/async-create-search-page-state')}`;
 
-    // First, visit Zillow homepage to establish session and get cookies
-    await browserPage.goto('https://www.zillow.com/', {
-      waitUntil: 'networkidle2',
-      timeout: 30000
+    const response = await fetch(scraperApiUrl, {
+      method: "PUT",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Origin": "https://www.zillow.com",
+        "Referer": "https://www.zillow.com/homes/",
+      },
+      body: requestBody,
     });
 
-    console.log(`🔍 Fetching ${area.name} page ${page}...`);
-
-    // Prepare search query
-    const searchQueryState = {
-      pagination: { currentPage: page },
-      isMapVisible: true,
-      mapBounds: area.mapBounds,
-      regionSelection: [{ regionId: area.regionId, regionType: 6 }],
-      filterState: {
-        sortSelection: { value: "globalrelevanceex" },
-        isAllHomes: { value: true },
-      },
-      isEntirePlaceForRent: true,
-      isRoomForRent: false,
-      isListVisible: true,
-    };
-
-    // Use page.evaluate to make the API call from within the browser context
-    const result = await browserPage.evaluate(async (searchQueryState) => {
-      try {
-        const response = await fetch("https://www.zillow.com/async-create-search-page-state", {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json, text/plain, */*",
-          },
-          body: JSON.stringify({
-            searchQueryState,
-            wants: { cat1: ["listResults", "mapResults"], cat2: ["total"] },
-          }),
-        });
-
-        const text = await response.text();
-
-        return {
-          status: response.status,
-          statusText: response.statusText,
-          text: text,
-          ok: response.ok
-        };
-      } catch (error) {
-        return {
-          error: error.message,
-          status: 0
-        };
-      }
-    }, searchQueryState);
-
-    // Close the page to free resources
-    await browserPage.close();
+    const text = await response.text();
 
     // DEBUG: Log response details
     console.log(`\n🔍 DEBUG ${area.name} p${page}:`);
-    console.log(`   Status: ${result.status} ${result.statusText || ''}`);
-    console.log(`   Response length: ${result.text?.length || 0} chars`);
+    console.log(`   Status: ${response.status} ${response.statusText}`);
+    console.log(`   Response length: ${text.length} chars`);
 
-    if (result.error) {
-      console.error(`❌ Browser fetch error:`, result.error);
-      return [];
-    }
-
-    if (!result.ok) {
-      console.error(`❌ HTTP error: ${result.status}`);
-      console.log(`   Response text (first 500 chars):`, result.text?.substring(0, 500));
+    if (!response.ok) {
+      console.error(`❌ HTTP error: ${response.status}`);
+      console.log(`   Response text (first 500 chars):`, text.substring(0, 500));
       return [];
     }
 
     try {
-      if (result.text.trim().startsWith("<")) {
+      if (text.trim().startsWith("<")) {
         console.log("❌ Got HTML response (blocked/captcha?)");
-        console.log("   First 300 chars:", result.text.substring(0, 300));
+        console.log("   First 300 chars:", text.substring(0, 300));
         throw new Error("Got HTML instead of JSON");
       }
 
-      const json = JSON.parse(result.text);
+      const json = JSON.parse(text);
 
       // DEBUG: Log JSON structure
       console.log(`   JSON keys:`, Object.keys(json));
@@ -1243,12 +1217,11 @@ async function fetchSearchPage(area, page) {
       return Array.isArray(listings) ? listings : [];
     } catch (e) {
       console.error("❌ Page parse error:", e.message);
-      console.log("   Response text (first 500 chars):", result.text?.substring(0, 500));
+      console.log("   Response text (first 500 chars):", text.substring(0, 500));
       return [];
     }
   } catch (error) {
-    console.error(`❌ Browser error for ${area.name} p${page}:`, error.message);
-    await browserPage.close().catch(() => {});
+    console.error(`❌ ScraperAPI error for ${area.name} p${page}:`, error.message);
     return [];
   }
 }
@@ -2209,10 +2182,6 @@ async function main(regionKeys = null, skipDetection = false) {
 
     // Add failed cities information to results for email notification
     results.failedCities = getCitiesNeedingRetry();
-
-    // Clean up browser resources
-    console.log("\n🧹 Cleaning up browser resources...");
-    await closeBrowser();
 
     // Send email notification
     console.log("\n📧 Sending email notification...");
