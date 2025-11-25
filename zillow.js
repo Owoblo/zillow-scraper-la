@@ -1183,19 +1183,42 @@ async function fetchSearchPage(area, page) {
   });
 
   const text = await res.text();
+
+  // DEBUG: Log response details
+  console.log(`\n🔍 DEBUG ${area.name} p${page}:`);
+  console.log(`   Status: ${res.status} ${res.statusText}`);
+  console.log(`   Response length: ${text.length} chars`);
+
   try {
     if (text.trim().startsWith("<")) {
-      console.log("Got HTML response, first 200 chars:", text.substring(0, 200));
+      console.log("❌ Got HTML response (blocked/captcha?)");
+      console.log("   First 300 chars:", text.substring(0, 300));
       throw new Error("Got HTML instead of JSON");
     }
+
     const json = JSON.parse(text);
+
+    // DEBUG: Log JSON structure
+    console.log(`   JSON keys:`, Object.keys(json));
+    if (json.cat1) {
+      console.log(`   cat1 keys:`, Object.keys(json.cat1));
+      if (json.cat1.searchResults) {
+        console.log(`   searchResults keys:`, Object.keys(json.cat1.searchResults));
+        const listings = json.cat1.searchResults.listResults;
+        console.log(`   ✅ Found ${listings?.length || 0} listings`);
+      } else {
+        console.log(`   ❌ No searchResults in cat1`);
+      }
+    } else {
+      console.log(`   ❌ No cat1 in response`);
+    }
+
     const listings = json?.cat1?.searchResults?.listResults ?? [];
     return Array.isArray(listings) ? listings : [];
   } catch (e) {
-    console.error("Page parse error:", e.message);
-    console.log("Response status:", res.status);
-    console.log("Response headers:", Object.fromEntries(res.headers.entries()));
-    console.log("Response text (first 500 chars):", text.substring(0, 500));
+    console.error("❌ Page parse error:", e.message);
+    console.log("   Response status:", res.status);
+    console.log("   Response text (first 500 chars):", text.substring(0, 500));
     return [];
   }
 }
