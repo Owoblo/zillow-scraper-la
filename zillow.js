@@ -1,13 +1,12 @@
 // zillow.js - Real-time Zillow Scraper with Email Notifications
 import dotenv from 'dotenv';
 dotenv.config();
-import fetch from "node-fetch";
 import fs from "graceful-fs";
 import { createClient } from "@supabase/supabase-js";
-import { getSmartProxyAgent } from "./proxies.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendScrapeNotification } from "./emailService.js";
 import { REGIONS, getAllCities, getCitiesForRegion, getRegionKeys } from "./config/regions.js";
+import { getNewPage, closeBrowser } from "./browserManager.js";
 // Enhanced data mapping and validation functions (integrated from scraper-improvements.js)
 
 
@@ -1138,87 +1137,118 @@ async function switchTables(regionFilter = null) {
 }
 
 async function fetchSearchPage(area, page) {
-  const searchQueryState = {
-    pagination: { currentPage: page },
-    isMapVisible: true,
-    mapBounds: area.mapBounds,
-    regionSelection: [{ regionId: area.regionId, regionType: 6 }],
-    filterState: {
-      sortSelection: { value: "globalrelevanceex" },
-      isAllHomes: { value: true },
-    },
-    isEntirePlaceForRent: true,
-    isRoomForRent: false,
-    isListVisible: true,
-  };
-
-  const res = await fetch("https://www.zillow.com/async-create-search-page-state", {
-    agent: getSmartProxyAgent(),
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      "Accept": "application/json, text/plain, */*",
-      "Accept-Language": "en-US,en;q=0.9",
-      "Accept-Encoding": "gzip, deflate, br",
-      "Content-Type": "application/json",
-      "Origin": "https://www.zillow.com",
-      "Referer": "https://www.zillow.com/homes/",
-      "Sec-Fetch-Dest": "empty",
-      "Sec-Fetch-Mode": "cors",
-      "Sec-Fetch-Site": "same-origin",
-      "Sec-Ch-Ua": '"Not/A)Brand";v="8", "Chromium";v="126", "Google Chrome";v="126"',
-      "Sec-Ch-Ua-Mobile": "?0",
-      "Sec-Ch-Ua-Platform": '"macOS"',
-      "Cache-Control": "no-cache",
-      "Pragma": "no-cache",
-      "DNT": "1",
-      "Connection": "keep-alive",
-      "Upgrade-Insecure-Requests": "1",
-    },
-    body: JSON.stringify({
-      searchQueryState,
-      wants: { cat1: ["listResults", "mapResults"], cat2: ["total"] },
-    }),
-    method: "PUT",
-  });
-
-  const text = await res.text();
-
-  // DEBUG: Log response details
-  console.log(`\n🔍 DEBUG ${area.name} p${page}:`);
-  console.log(`   Status: ${res.status} ${res.statusText}`);
-  console.log(`   Response length: ${text.length} chars`);
+  const { page: browserPage, proxy } = await getNewPage();
 
   try {
-    if (text.trim().startsWith("<")) {
-      console.log("❌ Got HTML response (blocked/captcha?)");
-      console.log("   First 300 chars:", text.substring(0, 300));
-      throw new Error("Got HTML instead of JSON");
-    }
+    console.log(`🌐 Using Decodo IP: ${proxy.ip} (${proxy.country})`);
 
-    const json = JSON.parse(text);
+    // First, visit Zillow homepage to establish session and get cookies
+    await browserPage.goto('https://www.zillow.com/', {
+      waitUntil: 'networkidle2',
+      timeout: 30000
+    });
 
-    // DEBUG: Log JSON structure
-    console.log(`   JSON keys:`, Object.keys(json));
-    if (json.cat1) {
-      console.log(`   cat1 keys:`, Object.keys(json.cat1));
-      if (json.cat1.searchResults) {
-        console.log(`   searchResults keys:`, Object.keys(json.cat1.searchResults));
-        const listings = json.cat1.searchResults.listResults;
-        console.log(`   ✅ Found ${listings?.length || 0} listings`);
-      } else {
-        console.log(`   ❌ No searchResults in cat1`);
+    console.log(`🔍 Fetching ${area.name} page ${page}...`);
+
+    // Prepare search query
+    const searchQueryState = {
+      pagination: { currentPage: page },
+      isMapVisible: true,
+      mapBounds: area.mapBounds,
+      regionSelection: [{ regionId: area.regionId, regionType: 6 }],
+      filterState: {
+        sortSelection: { value: "globalrelevanceex" },
+        isAllHomes: { value: true },
+      },
+      isEntirePlaceForRent: true,
+      isRoomForRent: false,
+      isListVisible: true,
+    };
+
+    // Use page.evaluate to make the API call from within the browser context
+    const result = await browserPage.evaluate(async (searchQueryState) => {
+      try {
+        const response = await fetch("https://www.zillow.com/async-create-search-page-state", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/plain, */*",
+          },
+          body: JSON.stringify({
+            searchQueryState,
+            wants: { cat1: ["listResults", "mapResults"], cat2: ["total"] },
+          }),
+        });
+
+        const text = await response.text();
+
+        return {
+          status: response.status,
+          statusText: response.statusText,
+          text: text,
+          ok: response.ok
+        };
+      } catch (error) {
+        return {
+          error: error.message,
+          status: 0
+        };
       }
-    } else {
-      console.log(`   ❌ No cat1 in response`);
+    }, searchQueryState);
+
+    // Close the page to free resources
+    await browserPage.close();
+
+    // DEBUG: Log response details
+    console.log(`\n🔍 DEBUG ${area.name} p${page}:`);
+    console.log(`   Status: ${result.status} ${result.statusText || ''}`);
+    console.log(`   Response length: ${result.text?.length || 0} chars`);
+
+    if (result.error) {
+      console.error(`❌ Browser fetch error:`, result.error);
+      return [];
     }
 
-    const listings = json?.cat1?.searchResults?.listResults ?? [];
-    return Array.isArray(listings) ? listings : [];
-  } catch (e) {
-    console.error("❌ Page parse error:", e.message);
-    console.log("   Response status:", res.status);
-    console.log("   Response text (first 500 chars):", text.substring(0, 500));
+    if (!result.ok) {
+      console.error(`❌ HTTP error: ${result.status}`);
+      console.log(`   Response text (first 500 chars):`, result.text?.substring(0, 500));
+      return [];
+    }
+
+    try {
+      if (result.text.trim().startsWith("<")) {
+        console.log("❌ Got HTML response (blocked/captcha?)");
+        console.log("   First 300 chars:", result.text.substring(0, 300));
+        throw new Error("Got HTML instead of JSON");
+      }
+
+      const json = JSON.parse(result.text);
+
+      // DEBUG: Log JSON structure
+      console.log(`   JSON keys:`, Object.keys(json));
+      if (json.cat1) {
+        console.log(`   cat1 keys:`, Object.keys(json.cat1));
+        if (json.cat1.searchResults) {
+          console.log(`   searchResults keys:`, Object.keys(json.cat1.searchResults));
+          const listings = json.cat1.searchResults.listResults;
+          console.log(`   ✅ Found ${listings?.length || 0} listings`);
+        } else {
+          console.log(`   ❌ No searchResults in cat1`);
+        }
+      } else {
+        console.log(`   ❌ No cat1 in response`);
+      }
+
+      const listings = json?.cat1?.searchResults?.listResults ?? [];
+      return Array.isArray(listings) ? listings : [];
+    } catch (e) {
+      console.error("❌ Page parse error:", e.message);
+      console.log("   Response text (first 500 chars):", result.text?.substring(0, 500));
+      return [];
+    }
+  } catch (error) {
+    console.error(`❌ Browser error for ${area.name} p${page}:`, error.message);
+    await browserPage.close().catch(() => {});
     return [];
   }
 }
@@ -2179,6 +2209,10 @@ async function main(regionKeys = null, skipDetection = false) {
 
     // Add failed cities information to results for email notification
     results.failedCities = getCitiesNeedingRetry();
+
+    // Clean up browser resources
+    console.log("\n🧹 Cleaning up browser resources...");
+    await closeBrowser();
 
     // Send email notification
     console.log("\n📧 Sending email notification...");
