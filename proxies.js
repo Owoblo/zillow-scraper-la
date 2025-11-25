@@ -3,27 +3,59 @@ import fetch from "node-fetch";
 import dotenv from "dotenv";
 dotenv.config();
 
-// Decodo static dedicated IP configuration with whitelisted IP
-const DECODO_STATIC_IP = {
-  host: 'isp.decodo.com',
-  port: 10001,
-  username: 'user-spob1kyjck-ip-45.58.216.179',
-  password: 'sma7j92aJikN~zIBc2'
-};
+// Decodo static dedicated IP configuration - All 3 IPs with rotation
+const DECODO_STATIC_IPS = [
+  {
+    host: 'isp.decodo.com',
+    port: 10001,
+    username: 'spob1kyjck',
+    password: 'sma7j92aJikN~zIBc2',
+    ip: '45.58.216.179',
+    country: 'US'
+  },
+  {
+    host: 'isp.decodo.com',
+    port: 10002,
+    username: 'spob1kyjck',
+    password: 'sma7j92aJikN~zIBc2',
+    ip: '82.23.110.71',
+    country: 'CA'
+  },
+  {
+    host: 'isp.decodo.com',
+    port: 10003,
+    username: 'spob1kyjck',
+    password: 'sma7j92aJikN~zIBc2',
+    ip: '82.23.110.38',
+    country: 'CA'
+  }
+];
 
-// Get Decodo static IP proxy agent
+let decodoRotationIndex = 0;
+
+// Get Decodo static IP proxy agent with rotation
 export function getDecodoProxyAgent() {
+  const proxy = DECODO_STATIC_IPS[decodoRotationIndex % DECODO_STATIC_IPS.length];
+  decodoRotationIndex++;
+
+  console.log(`🌐 Decodo IP: ${proxy.ip} (${proxy.country}) - Port ${proxy.port}`);
+
   return new HttpsProxyAgent({
-    host: DECODO_STATIC_IP.host,
-    port: DECODO_STATIC_IP.port,
-    username: DECODO_STATIC_IP.username,
-    password: DECODO_STATIC_IP.password,
+    host: proxy.host,
+    port: proxy.port,
+    username: proxy.username,
+    password: proxy.password,
   });
 }
 
-// Get Decodo static IP proxy URL
+// Get Decodo static IP proxy URL with rotation
 export function getDecodoProxyUrl() {
-  return `http://${DECODO_STATIC_IP.username}:${DECODO_STATIC_IP.password}@${DECODO_STATIC_IP.host}:${DECODO_STATIC_IP.port}`;
+  const proxy = DECODO_STATIC_IPS[decodoRotationIndex % DECODO_STATIC_IPS.length];
+  decodoRotationIndex++;
+
+  console.log(`🌐 Decodo IP: ${proxy.ip} (${proxy.country}) - Port ${proxy.port}`);
+
+  return `http://${proxy.username}:${proxy.password}@${proxy.host}:${proxy.port}`;
 }
 
 // Enhanced proxy rotation for better anti-detection
