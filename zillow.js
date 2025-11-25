@@ -1160,8 +1160,8 @@ async function fetchSearchPage(area, page) {
   });
 
   try {
-    // Use ScraperAPI to bypass bot detection
-    const scraperApiUrl = `http://api.scraperapi.com?api_key=${process.env.SCRAPERAPI_KEY}&url=${encodeURIComponent('https://www.zillow.com/async-create-search-page-state')}`;
+    // Use ScraperAPI to bypass bot detection (premium mode for Zillow)
+    const scraperApiUrl = `http://api.scraperapi.com?api_key=${process.env.SCRAPERAPI_KEY}&url=${encodeURIComponent('https://www.zillow.com/async-create-search-page-state')}&premium=true&render=true`;
 
     const response = await fetch(scraperApiUrl, {
       method: "PUT",
