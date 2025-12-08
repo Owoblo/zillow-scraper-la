@@ -202,6 +202,101 @@ export const REGIONS = {
       { name: "Winston-Salem", state: "NC" },
     ]
   },
+
+  // ========================================
+  // CANADA REGIONS
+  // ========================================
+
+  'canada-ontario': {
+    name: 'Ontario, Canada',
+    cities: [
+      { name: "Toronto", state: "ON" },
+      { name: "Ottawa", state: "ON" },
+      { name: "Mississauga", state: "ON" },
+      { name: "Brampton", state: "ON" },
+      { name: "Hamilton", state: "ON" },
+      { name: "London", state: "ON" },
+      { name: "Markham", state: "ON" },
+      { name: "Vaughan", state: "ON" },
+      { name: "Kitchener", state: "ON" },
+      { name: "Windsor", state: "ON" },
+      { name: "Richmond Hill", state: "ON" },
+      { name: "Oakville", state: "ON" },
+      { name: "Burlington", state: "ON" },
+      { name: "Oshawa", state: "ON" },
+      { name: "Barrie", state: "ON" },
+      { name: "Guelph", state: "ON" },
+      { name: "Cambridge", state: "ON" },
+      { name: "Waterloo", state: "ON" },
+      { name: "Kingston", state: "ON" },
+      { name: "Whitby", state: "ON" },
+    ]
+  },
+
+  'canada-british-columbia': {
+    name: 'British Columbia, Canada',
+    cities: [
+      { name: "Vancouver", state: "BC" },
+      { name: "Surrey", state: "BC" },
+      { name: "Burnaby", state: "BC" },
+      { name: "Richmond", state: "BC" },
+      { name: "Abbotsford", state: "BC" },
+      { name: "Coquitlam", state: "BC" },
+      { name: "Kelowna", state: "BC" },
+      { name: "Victoria", state: "BC" },
+      { name: "Langley", state: "BC" },
+      { name: "Nanaimo", state: "BC" },
+      { name: "Kamloops", state: "BC" },
+      { name: "Chilliwack", state: "BC" },
+    ]
+  },
+
+  'canada-alberta': {
+    name: 'Alberta, Canada',
+    cities: [
+      { name: "Calgary", state: "AB" },
+      { name: "Edmonton", state: "AB" },
+      { name: "Red Deer", state: "AB" },
+      { name: "Lethbridge", state: "AB" },
+      { name: "St. Albert", state: "AB" },
+      { name: "Medicine Hat", state: "AB" },
+      { name: "Grande Prairie", state: "AB" },
+      { name: "Airdrie", state: "AB" },
+    ]
+  },
+
+  'canada-quebec': {
+    name: 'Quebec, Canada',
+    cities: [
+      { name: "Montreal", state: "QC" },
+      { name: "Quebec City", state: "QC" },
+      { name: "Laval", state: "QC" },
+      { name: "Gatineau", state: "QC" },
+      { name: "Longueuil", state: "QC" },
+      { name: "Sherbrooke", state: "QC" },
+      { name: "Trois-Rivieres", state: "QC" },
+    ]
+  },
+
+  'canada-prairies': {
+    name: 'Canadian Prairies',
+    cities: [
+      { name: "Winnipeg", state: "MB" },
+      { name: "Saskatoon", state: "SK" },
+      { name: "Regina", state: "SK" },
+    ]
+  },
+
+  'canada-maritimes': {
+    name: 'Canadian Maritimes',
+    cities: [
+      { name: "Halifax", state: "NS" },
+      { name: "St. John's", state: "NL" },
+      { name: "Moncton", state: "NB" },
+      { name: "Fredericton", state: "NB" },
+      { name: "Charlottetown", state: "PE" },
+    ]
+  },
 };
 
 /**
