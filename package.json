@@ -46,7 +46,15 @@
     "focused:run": "node enhanced-optimized-system.js",
     "proxy:run": "node focused-proxy-system.js",
     "marketing:test": "node test-marketing-email.js",
-    "trigger:kwg": "node trigger-kwg.js"
+    "trigger:kwg": "node trigger-kwg.js",
+    "rapid:test": "node test-rapidapi.js",
+    "rapid:city": "node rapidapi-scraper.js city",
+    "rapid:region": "node rapidapi-scraper.js region",
+    "rapid:all": "node rapidapi-scraper.js all",
+    "unified:city": "node unified-scraper.js city",
+    "unified:region": "node unified-scraper.js region",
+    "unified:all": "node unified-scraper.js all",
+    "migrate": "node run-migration.js"
   },
   "keywords": [
     "zillow",
