@@ -56,3 +56,17 @@ services:
         sync: false
       - key: SMARTPROXY_PASS
         sync: false
+
+  # NEW UNIFIED SCRAPER - RapidAPI (Recommended)
+  - type: cron
+    name: unified-scraper-daily
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node unified-scraper.js all
+    schedule: "0 3 * * *"  # Every day at 3 AM UTC (10 PM EST / 7 PM PST)
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: RAPIDAPI_KEY
+        value: fad289c8b7msh67ab38f37446aedp1132acjsnc18eaf48b653
