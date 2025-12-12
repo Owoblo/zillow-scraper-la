@@ -86,7 +86,7 @@ class Logger {
 /**
  * Map RapidAPI response to unified schema
  */
-function mapRapidAPIToRow(item, cityName, page, runId, regionName = null, country = 'USA') {
+function mapRapidAPIToRow(item, cityName, page, runId, regionName = null, country = 'USA', photoUrls = null, agentInfo = null) {
   const zpid = item?.zpid;
 
   if (!zpid) {
@@ -143,8 +143,8 @@ function mapRapidAPIToRow(item, cityName, page, runId, regionName = null, countr
     baths: validateNumeric(item?.bathrooms),
     area: validateNumeric(item?.livingArea),
     latlong: JSON.stringify(latObj),
-    hdpdata: null,
-    carouselphotos: null,
+    hdpdata: agentInfo ? JSON.stringify(agentInfo) : null,
+    carouselphotos: photoUrls && photoUrls.length > 0 ? JSON.stringify(photoUrls) : null,
     iszillowowned: item?.isZillowOwned ?? null,
     issaved: false,
     isuserclaimingowner: false,
@@ -158,13 +158,13 @@ function mapRapidAPIToRow(item, cityName, page, runId, regionName = null, countr
     sgapt: null,
     list: null,
     info1string: `${item?.bedrooms ?? 0} bd, ${item?.bathrooms ?? 0} ba`,
-    brokername: null,
+    brokername: agentInfo?.brokerageName || null,
     openhousedescription: item?.openHouse ?? null,
     buildername: null,
     hasvideo: false,
     ispropertyresultcdp: false,
     lotareastring: item?.lotAreaValue ? `${Math.floor(item.lotAreaValue)} ${item?.lotAreaUnit ?? 'sqft'}` : null,
-    providerlistingid: null,
+    providerlistingid: agentInfo?.mlsId || null,
     streetviewmetadataurl: null,
     streetviewurl: null,
     lastseenat: new Date().toISOString(),
@@ -228,6 +228,121 @@ async function fetchRapidAPIListings(cityName, stateName, page, logger) {
       listings: []
     };
   }
+}
+
+/**
+ * Fetch property details from RapidAPI /propertyV2 endpoint
+ */
+async function fetchPropertyDetails(zpid, logger) {
+  const params = new URLSearchParams({
+    zpid: zpid,
+    output: 'json'
+  });
+
+  const url = `https://${RAPIDAPI_HOST}/propertyV2?${params.toString()}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'x-rapidapi-host': RAPIDAPI_HOST,
+        'x-rapidapi-key': RAPIDAPI_KEY
+      },
+      timeout: 30000
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      success: true,
+      data: data
+    };
+
+  } catch (error) {
+    logger.error(`Failed to fetch property details for zpid ${zpid}`, error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Extract largest JPEG URLs from originalPhotos array
+ */
+function extractPhotoUrls(propertyData) {
+  if (!propertyData || !propertyData.originalPhotos || !Array.isArray(propertyData.originalPhotos)) {
+    return [];
+  }
+
+  const photoUrls = [];
+
+  for (const photo of propertyData.originalPhotos) {
+    if (photo?.mixedSources?.jpeg && Array.isArray(photo.mixedSources.jpeg)) {
+      // Sort by width descending and get the largest
+      const sortedJpegs = photo.mixedSources.jpeg.sort((a, b) => (b.width || 0) - (a.width || 0));
+
+      if (sortedJpegs.length > 0 && sortedJpegs[0]?.url) {
+        photoUrls.push(sortedJpegs[0].url);
+      }
+    }
+  }
+
+  return photoUrls;
+}
+
+/**
+ * Extract agent information from propertyV2 response
+ */
+function extractAgentInfo(propertyData) {
+  if (!propertyData) {
+    return null;
+  }
+
+  const agentInfo = {
+    brokerageName: propertyData.brokerageName || null,
+    agentName: null,
+    agentPhone: null,
+    agentEmail: null,
+    agentLicense: null,
+    coAgentName: null,
+    coAgentPhone: null,
+    coAgentLicense: null,
+    mlsId: null,
+    mlsName: null,
+    listingAgents: []
+  };
+
+  // Extract from attributionInfo
+  if (propertyData.attributionInfo) {
+    const attr = propertyData.attributionInfo;
+    agentInfo.agentName = attr.agentName || null;
+    agentInfo.agentPhone = attr.agentPhoneNumber || null;
+    agentInfo.agentEmail = attr.agentEmail || null;
+    agentInfo.agentLicense = attr.agentLicenseNumber || null;
+    agentInfo.coAgentName = attr.coAgentName || null;
+    agentInfo.coAgentPhone = attr.coAgentNumber || null;
+    agentInfo.coAgentLicense = attr.coAgentLicenseNumber || null;
+    agentInfo.mlsId = attr.mlsId || null;
+    agentInfo.mlsName = attr.mlsName || null;
+
+    // Extract all listing agents
+    if (attr.listingAgents && Array.isArray(attr.listingAgents)) {
+      agentInfo.listingAgents = attr.listingAgents
+        .filter(a => a.memberFullName)
+        .map(a => ({
+          name: a.memberFullName,
+          license: a.memberStateLicense,
+          type: a.associatedAgentType
+        }));
+    }
+  }
+
+  return agentInfo;
 }
 
 /**
@@ -475,11 +590,59 @@ async function scrapeCity(cityConfig, regionName, runId) {
 
     logger.success(`Scraped ${allListings.length} listings from ${pagesScraped} pages`);
 
+    // Fetch photos and agent info for each listing
+    logger.info('Fetching photo carousels and agent info for all listings...');
+    const listingsWithDetails = [];
+    let detailsFetchedCount = 0;
+    let detailsFailedCount = 0;
+
+    for (let i = 0; i < allListings.length; i++) {
+      const item = allListings[i];
+      const zpid = item?.zpid;
+
+      if (!zpid) {
+        listingsWithDetails.push({ item, photoUrls: [], agentInfo: null });
+        continue;
+      }
+
+      // Fetch property details with 500ms delay (2 requests/second rate limit)
+      if (i > 0) {
+        await new Promise(r => setTimeout(r, 500));
+      }
+
+      const propertyDetails = await fetchPropertyDetails(zpid, logger);
+
+      if (propertyDetails.success && propertyDetails.data) {
+        const photoUrls = extractPhotoUrls(propertyDetails.data);
+        const agentInfo = extractAgentInfo(propertyDetails.data);
+        listingsWithDetails.push({ item, photoUrls, agentInfo });
+        detailsFetchedCount++;
+
+        if ((i + 1) % 10 === 0) {
+          logger.info(`Fetched details for ${i + 1}/${allListings.length} listings...`);
+        }
+      } else {
+        listingsWithDetails.push({ item, photoUrls: [], agentInfo: null });
+        detailsFailedCount++;
+      }
+    }
+
+    logger.success(`Details fetch complete: ${detailsFetchedCount} successful, ${detailsFailedCount} failed`);
+
     // Map to database schema
     logger.info('Mapping listings to database schema...');
-    const mappedListings = allListings
-      .map((item, idx) =>
-        mapRapidAPIToRow(item, cityName, Math.floor(idx / 41) + 1, runId, regionName, country)
+    const mappedListings = listingsWithDetails
+      .map((listing, idx) =>
+        mapRapidAPIToRow(
+          listing.item,
+          cityName,
+          Math.floor(idx / 41) + 1,
+          runId,
+          regionName,
+          country,
+          listing.photoUrls,
+          listing.agentInfo
+        )
       )
       .filter(l => l !== null);
 
