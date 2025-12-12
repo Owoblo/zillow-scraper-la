@@ -590,11 +590,35 @@ async function scrapeCity(cityConfig, regionName, runId) {
 
     logger.success(`Scraped ${allListings.length} listings from ${pagesScraped} pages`);
 
-    // Fetch photos and agent info for each listing
-    logger.info('Fetching photo carousels and agent info for all listings...');
+    // Check which listings already have photos and agent data in the database
+    logger.info('Checking database for existing photos/agent data...');
+    const allZpids = allListings.map(l => l.zpid).filter(z => z);
+
+    const { data: existingData, error: existingError } = await supabase
+      .from(LISTINGS_TABLE)
+      .select('zpid, carouselphotos, hdpdata')
+      .in('zpid', allZpids)
+      .not('carouselphotos', 'is', null)
+      .not('hdpdata', 'is', null);
+
+    if (existingError) {
+      logger.error('Failed to check existing data', existingError);
+    }
+
+    // Create a Set of zpids that already have complete data
+    const zpidsWithData = new Set((existingData || []).map(item => item.zpid));
+    const needsFetching = allListings.filter(l => l.zpid && !zpidsWithData.has(l.zpid));
+    const alreadyHasData = allListings.filter(l => l.zpid && zpidsWithData.has(l.zpid));
+
+    logger.info(`Found ${zpidsWithData.size} listings with existing data (will skip)`);
+    logger.info(`Need to fetch data for ${needsFetching.length} listings`);
+
+    // Fetch photos and agent info only for listings that need it
+    logger.info('Fetching photo carousels and agent info for new listings...');
     const listingsWithDetails = [];
     let detailsFetchedCount = 0;
     let detailsFailedCount = 0;
+    let skippedCount = 0;
 
     for (let i = 0; i < allListings.length; i++) {
       const item = allListings[i];
@@ -605,8 +629,15 @@ async function scrapeCity(cityConfig, regionName, runId) {
         continue;
       }
 
+      // Skip if listing already has photos and agent data
+      if (zpidsWithData.has(zpid)) {
+        listingsWithDetails.push({ item, photoUrls: null, agentInfo: null, skipFetch: true });
+        skippedCount++;
+        continue;
+      }
+
       // Fetch property details with 500ms delay (2 requests/second rate limit)
-      if (i > 0) {
+      if (detailsFetchedCount > 0) {
         await new Promise(r => setTimeout(r, 500));
       }
 
@@ -618,8 +649,8 @@ async function scrapeCity(cityConfig, regionName, runId) {
         listingsWithDetails.push({ item, photoUrls, agentInfo });
         detailsFetchedCount++;
 
-        if ((i + 1) % 10 === 0) {
-          logger.info(`Fetched details for ${i + 1}/${allListings.length} listings...`);
+        if (detailsFetchedCount % 10 === 0) {
+          logger.info(`Fetched details for ${detailsFetchedCount}/${needsFetching.length} new listings...`);
         }
       } else {
         listingsWithDetails.push({ item, photoUrls: [], agentInfo: null });
@@ -627,11 +658,13 @@ async function scrapeCity(cityConfig, regionName, runId) {
       }
     }
 
-    logger.success(`Details fetch complete: ${detailsFetchedCount} successful, ${detailsFailedCount} failed`);
+    logger.success(`Details fetch complete: ${detailsFetchedCount} fetched, ${skippedCount} skipped, ${detailsFailedCount} failed`);
+    logger.success(`💰 Saved ${skippedCount} API calls!`);
 
-    // Map to database schema
+    // Map to database schema (only listings that need updating)
     logger.info('Mapping listings to database schema...');
     const mappedListings = listingsWithDetails
+      .filter(listing => !listing.skipFetch) // Don't update listings we skipped
       .map((listing, idx) =>
         mapRapidAPIToRow(
           listing.item,
@@ -646,7 +679,7 @@ async function scrapeCity(cityConfig, regionName, runId) {
       )
       .filter(l => l !== null);
 
-    logger.info(`Mapped ${mappedListings.length} valid listings`);
+    logger.info(`Mapped ${mappedListings.length} valid listings (${skippedCount} skipped to preserve existing data)`);
 
     // Smart upsert with status tracking
     logger.info('Upserting to database...');
