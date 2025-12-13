@@ -230,9 +230,12 @@ async function fetchRapidAPIListings(cityName, stateName, page, logger) {
   }
 }
 
-/**
- * Fetch property details from RapidAPI /propertyV2 endpoint
- */
+// ============================================================================
+// PROPERTY V2 CODE - TEMPORARILY DISABLED
+// Uncomment when ready to use photo carousel and agent info features
+// ============================================================================
+
+/*
 async function fetchPropertyDetails(zpid, logger) {
   const params = new URLSearchParams({
     zpid: zpid,
@@ -271,9 +274,6 @@ async function fetchPropertyDetails(zpid, logger) {
   }
 }
 
-/**
- * Extract largest JPEG URLs from originalPhotos array
- */
 function extractPhotoUrls(propertyData) {
   if (!propertyData || !propertyData.originalPhotos || !Array.isArray(propertyData.originalPhotos)) {
     return [];
@@ -283,7 +283,6 @@ function extractPhotoUrls(propertyData) {
 
   for (const photo of propertyData.originalPhotos) {
     if (photo?.mixedSources?.jpeg && Array.isArray(photo.mixedSources.jpeg)) {
-      // Sort by width descending and get the largest
       const sortedJpegs = photo.mixedSources.jpeg.sort((a, b) => (b.width || 0) - (a.width || 0));
 
       if (sortedJpegs.length > 0 && sortedJpegs[0]?.url) {
@@ -295,9 +294,6 @@ function extractPhotoUrls(propertyData) {
   return photoUrls;
 }
 
-/**
- * Extract agent information from propertyV2 response
- */
 function extractAgentInfo(propertyData) {
   if (!propertyData) {
     return null;
@@ -317,7 +313,6 @@ function extractAgentInfo(propertyData) {
     listingAgents: []
   };
 
-  // Extract from attributionInfo
   if (propertyData.attributionInfo) {
     const attr = propertyData.attributionInfo;
     agentInfo.agentName = attr.agentName || null;
@@ -330,7 +325,6 @@ function extractAgentInfo(propertyData) {
     agentInfo.mlsId = attr.mlsId || null;
     agentInfo.mlsName = attr.mlsName || null;
 
-    // Extract all listing agents
     if (attr.listingAgents && Array.isArray(attr.listingAgents)) {
       agentInfo.listingAgents = attr.listingAgents
         .filter(a => a.memberFullName)
@@ -344,6 +338,11 @@ function extractAgentInfo(propertyData) {
 
   return agentInfo;
 }
+*/
+
+// ============================================================================
+// END PROPERTY V2 CODE
+// ============================================================================
 
 /**
  * Smart upsert with status tracking
@@ -590,7 +589,11 @@ async function scrapeCity(cityConfig, regionName, runId) {
 
     logger.success(`Scraped ${allListings.length} listings from ${pagesScraped} pages`);
 
-    // Check which listings already have photos and agent data in the database
+    // ========================================================================
+    // PROPERTY V2 FETCHING - TEMPORARILY DISABLED
+    // Uncomment this section when ready to use photo carousel and agent info
+    // ========================================================================
+    /*
     logger.info('Checking database for existing photos/agent data...');
     const allZpids = allListings.map(l => l.zpid).filter(z => z);
 
@@ -605,7 +608,6 @@ async function scrapeCity(cityConfig, regionName, runId) {
       logger.error('Failed to check existing data', existingError);
     }
 
-    // Create a Set of zpids that already have complete data
     const zpidsWithData = new Set((existingData || []).map(item => item.zpid));
     const needsFetching = allListings.filter(l => l.zpid && !zpidsWithData.has(l.zpid));
     const alreadyHasData = allListings.filter(l => l.zpid && zpidsWithData.has(l.zpid));
@@ -613,7 +615,6 @@ async function scrapeCity(cityConfig, regionName, runId) {
     logger.info(`Found ${zpidsWithData.size} listings with existing data (will skip)`);
     logger.info(`Need to fetch data for ${needsFetching.length} listings`);
 
-    // Fetch photos and agent info only for listings that need it
     logger.info('Fetching photo carousels and agent info for new listings...');
     const listingsWithDetails = [];
     let detailsFetchedCount = 0;
@@ -629,14 +630,12 @@ async function scrapeCity(cityConfig, regionName, runId) {
         continue;
       }
 
-      // Skip if listing already has photos and agent data
       if (zpidsWithData.has(zpid)) {
         listingsWithDetails.push({ item, photoUrls: null, agentInfo: null, skipFetch: true });
         skippedCount++;
         continue;
       }
 
-      // Fetch property details with 500ms delay (2 requests/second rate limit)
       if (detailsFetchedCount > 0) {
         await new Promise(r => setTimeout(r, 500));
       }
@@ -661,10 +660,8 @@ async function scrapeCity(cityConfig, regionName, runId) {
     logger.success(`Details fetch complete: ${detailsFetchedCount} fetched, ${skippedCount} skipped, ${detailsFailedCount} failed`);
     logger.success(`💰 Saved ${skippedCount} API calls!`);
 
-    // Map to database schema (only listings that need updating)
-    logger.info('Mapping listings to database schema...');
     const mappedListings = listingsWithDetails
-      .filter(listing => !listing.skipFetch) // Don't update listings we skipped
+      .filter(listing => !listing.skipFetch)
       .map((listing, idx) =>
         mapRapidAPIToRow(
           listing.item,
@@ -680,6 +677,20 @@ async function scrapeCity(cityConfig, regionName, runId) {
       .filter(l => l !== null);
 
     logger.info(`Mapped ${mappedListings.length} valid listings (${skippedCount} skipped to preserve existing data)`);
+    */
+    // ========================================================================
+    // END PROPERTY V2 FETCHING
+    // ========================================================================
+
+    // Map to database schema (basic listings only, no photos/agent info)
+    logger.info('Mapping listings to database schema...');
+    const mappedListings = allListings
+      .map((item, idx) =>
+        mapRapidAPIToRow(item, cityName, Math.floor(idx / 41) + 1, runId, regionName, country)
+      )
+      .filter(l => l !== null);
+
+    logger.info(`Mapped ${mappedListings.length} valid listings`);
 
     // Smart upsert with status tracking
     logger.info('Upserting to database...');
