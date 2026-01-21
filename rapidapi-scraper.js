@@ -18,7 +18,7 @@ if (!supabaseUrl || !supabaseKey) {
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // RapidAPI Configuration
-const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || 'fad289c8b7msh67ab38f37446aedp1132acjsnc18eaf48b653';
+const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || '69eaef0293mshe6717ee0831c3e6p19e07cjsnbae507ba3c7c';
 const RAPIDAPI_HOST = 'us-real-estate-data.p.rapidapi.com';
 
 // Database tables
