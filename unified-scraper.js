@@ -358,6 +358,17 @@ async function smartUpsertListings(newListings, logger) {
     };
   }
 
+  // Deduplicate listings by zpid (API can return same listing on multiple pages)
+  const dedupeMap = new Map();
+  for (const listing of newListings) {
+    dedupeMap.set(listing.zpid, listing); // Keep last occurrence
+  }
+  const dedupedListings = Array.from(dedupeMap.values());
+
+  if (dedupedListings.length < newListings.length) {
+    logger.info(`Deduplicated: ${newListings.length} → ${dedupedListings.length} listings (removed ${newListings.length - dedupedListings.length} duplicates)`);
+  }
+
   const stats = {
     new: 0,
     updated: 0,
@@ -367,7 +378,7 @@ async function smartUpsertListings(newListings, logger) {
 
   try {
     // Get existing listings
-    const zpids = newListings.map(l => l.zpid);
+    const zpids = dedupedListings.map(l => l.zpid);
     logger.info(`Fetching ${zpids.length} existing listings from database...`);
 
     const { data: existing, error: fetchError } = await supabase
@@ -384,7 +395,7 @@ async function smartUpsertListings(newListings, logger) {
     logger.info(`Found ${existingMap.size} existing listings`);
 
     // Process each listing
-    const toUpsert = newListings.map(listing => {
+    const toUpsert = dedupedListings.map(listing => {
       const existing = existingMap.get(listing.zpid);
 
       if (!existing) {
@@ -478,9 +489,15 @@ async function markUnseenAsSold(cityName, runId, scrapeStartTime, logger) {
       .select('zpid, status')
       .eq('lastcity', cityName)
       .lt('last_seen_at', scrapeStartTime)
-      .in('status', [STATUS.ACTIVE, STATUS.JUST_LISTED, STATUS.PRICE_CHANGED]);
+      .in('status', [STATUS.ACTIVE, STATUS.JUST_LISTED, STATUS.PRICE_CHANGED])
+      .limit(1000); // Limit to prevent timeout on large datasets
 
     if (fetchError) {
+      // Handle statement timeout gracefully
+      if (fetchError.message?.includes('statement timeout')) {
+        logger.warn('Sold check skipped (query timeout). Consider adding index: CREATE INDEX idx_listings_city_status_lastseen ON listings (lastcity, status, last_seen_at);');
+        return 0;
+      }
       logger.error('Failed to fetch unseen listings', fetchError);
       return 0;
     }
