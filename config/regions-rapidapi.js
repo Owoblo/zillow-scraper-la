@@ -203,6 +203,14 @@ export const REGIONS = {
     ]
   },
 
+  'missouri': {
+    name: 'Missouri',
+    cities: [
+      { name: "St. Louis", state: "MO" },
+      { name: "Kansas City", state: "MO" },
+    ]
+  },
+
   // ========================================
   // CANADA REGIONS
   // ========================================
