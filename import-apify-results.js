@@ -21,8 +21,8 @@ const STATUS = {
 };
 
 function mapApifyToRow(item) {
-  const zpid = item.zpid?.toString();
-  if (!zpid) return null;
+  const zpid = Number(item.zpid);
+  if (!zpid || !Number.isFinite(zpid)) return null;
 
   const homeInfo = item.hdpData?.homeInfo || {};
   const validateNumeric = (value) => {
@@ -48,13 +48,18 @@ function mapApifyToRow(item) {
     );
   }
 
+  // Determine region from city
+  const windsorCities = ['Windsor','LaSalle','Lasalle','Leamington','Chatham-Kent','Chatham Kent',
+    'Lakeshore','Amherstburg','Tecumseh','Kingsville','Essex','Tilbury','McGregor','Belle River'];
+  const region = windsorCities.some(c => c.toLowerCase() === (city||'').toLowerCase()) ? 'Windsor Area' : null;
+
   return {
     zpid,
     lastrunid: 'apify-import',
     lastcity: city,
     lastpage: null,
     city: city,
-    region: 'Windsor Area',
+    region: region,
     country: country,
     currency: currency,
     last_seen_at: new Date().toISOString(),
@@ -69,7 +74,7 @@ function mapApifyToRow(item) {
     countrycurrency: item.countryCurrency ?? currency,
     price: item.price ?? (price ? `$${price.toLocaleString()}` : null),
     unformattedprice: price,
-    address: item.address ?? null,
+    address: item.address ?? [item.addressStreet || homeInfo.streetAddress, city, state, item.addressZipcode || homeInfo.zipcode].filter(Boolean).join(', ') || null,
     addressstreet: item.addressStreet ?? homeInfo.streetAddress ?? null,
     addresszipcode: item.addressZipcode ?? homeInfo.zipcode ?? null,
     addresscity: city,
@@ -158,22 +163,25 @@ async function main() {
   const existingMap = new Map(existing.map(l => [l.zpid, l]));
   console.log(`  Found ${existingMap.size} existing listings`);
 
-  // Process each listing
+  // Process each listing - preserve first_seen_at for existing listings
   const stats = { new: 0, updated: 0, priceChanges: 0, errors: 0 };
   const toUpsert = dedupedRows.map(listing => {
     const ex = existingMap.get(listing.zpid);
     if (!ex) {
+      // NEW listing - set first_seen_at and just_listed
       stats.new++;
       return { ...listing, status: STATUS.JUST_LISTED, first_seen_at: new Date().toISOString() };
     }
+    // EXISTING listing - do NOT include first_seen_at so we don't overwrite it
+    const { first_seen_at, ...listingWithoutFirstSeen } = listing;
     const oldPrice = ex.unformattedprice;
     const newPrice = listing.unformattedprice;
     if (oldPrice && newPrice && oldPrice !== newPrice) {
       stats.priceChanges++;
-      return { ...listing, status: STATUS.PRICE_CHANGED, previous_price: oldPrice, price_change_date: new Date().toISOString() };
+      return { ...listingWithoutFirstSeen, status: STATUS.PRICE_CHANGED, previous_price: oldPrice, price_change_date: new Date().toISOString() };
     }
     stats.updated++;
-    return { ...listing, status: STATUS.ACTIVE };
+    return { ...listingWithoutFirstSeen, status: STATUS.ACTIVE };
   });
 
   // Batch upsert
@@ -196,6 +204,45 @@ async function main() {
     }
   }
 
+  // Mark unseen listings as sold
+  console.log('\n🔍 Checking for sold listings...');
+  const scrapedZpids = new Set(dedupedRows.map(r => r.zpid));
+
+  // Get all active (non-sold) listings for Windsor area cities
+  const windsorCities = [...new Set(dedupedRows.map(r => r.city).filter(Boolean))];
+  let activeListings = [];
+  for (let i = 0; i < windsorCities.length; i += 5) {
+    const cityBatch = windsorCities.slice(i, i + 5);
+    const { data, error } = await supabase
+      .from(LISTINGS_TABLE)
+      .select('zpid')
+      .in('city', cityBatch)
+      .neq('status', 'sold');
+    if (!error && data) activeListings = activeListings.concat(data);
+  }
+
+  const toMarkSold = activeListings.filter(l => !scrapedZpids.has(Number(l.zpid)));
+  stats.sold = 0;
+
+  if (toMarkSold.length > 0) {
+    console.log(`  Found ${toMarkSold.length} listings to mark as sold`);
+    for (let i = 0; i < toMarkSold.length; i += UPSERT_BATCH_SIZE) {
+      const batch = toMarkSold.slice(i, i + UPSERT_BATCH_SIZE).map(r => r.zpid);
+      const { error } = await supabase
+        .from(LISTINGS_TABLE)
+        .update({ status: STATUS.SOLD })
+        .in('zpid', batch);
+      if (error) {
+        console.error(`  ❌ Sold batch error:`, error.message);
+      } else {
+        stats.sold += batch.length;
+      }
+    }
+    console.log(`  ✅ Marked ${stats.sold} listings as sold`);
+  } else {
+    console.log('  No new sold listings detected');
+  }
+
   // Print city breakdown
   const cityCounts = {};
   dedupedRows.forEach(r => {
@@ -205,7 +252,7 @@ async function main() {
   console.log('\n==============================');
   console.log('📊 IMPORT COMPLETE');
   console.log(`  Total: ${dedupedRows.length} listings`);
-  console.log(`  New: ${stats.new} | Updated: ${stats.updated} | Price Changes: ${stats.priceChanges} | Errors: ${stats.errors}`);
+  console.log(`  New: ${stats.new} | Updated: ${stats.updated} | Price Changes: ${stats.priceChanges} | Sold: ${stats.sold} | Errors: ${stats.errors}`);
   console.log('\n  By city:');
   Object.entries(cityCounts).sort((a, b) => b[1] - a[1]).forEach(([city, count]) => {
     console.log(`    ${city}: ${count}`);
