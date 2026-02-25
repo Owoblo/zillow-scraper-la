@@ -4,6 +4,7 @@
 export const REGIONS = {
   'bay-area': {
     name: 'Bay Area',
+    enabled: false,
     cities: [
       { name: "San Francisco", state: "CA" },
       { name: "Oakland", state: "CA" },
@@ -22,6 +23,7 @@ export const REGIONS = {
 
   'los-angeles-area': {
     name: 'Los Angeles Area',
+    enabled: false,
     cities: [
       { name: "Los Angeles", state: "CA" },
       { name: "Glendale", state: "CA" },
@@ -38,6 +40,7 @@ export const REGIONS = {
 
   'san-diego-area': {
     name: 'San Diego Area',
+    enabled: false,
     cities: [
       { name: "San Diego", state: "CA" },
       { name: "Chula Vista", state: "CA" },
@@ -51,6 +54,7 @@ export const REGIONS = {
 
   'sacramento-area': {
     name: 'Sacramento Area',
+    enabled: false,
     cities: [
       { name: "Sacramento", state: "CA" },
       { name: "Elk Grove", state: "CA" },
@@ -62,6 +66,7 @@ export const REGIONS = {
 
   'orange-county': {
     name: 'Orange County',
+    enabled: false,
     cities: [
       { name: "Irvine", state: "CA" },
       { name: "Anaheim", state: "CA" },
@@ -75,6 +80,7 @@ export const REGIONS = {
 
   'riverside-area': {
     name: 'Riverside Area',
+    enabled: false,
     cities: [
       { name: "Riverside", state: "CA" },
       { name: "Corona", state: "CA" },
@@ -86,6 +92,7 @@ export const REGIONS = {
 
   'fresno-area': {
     name: 'Fresno Area',
+    enabled: false,
     cities: [
       { name: "Fresno", state: "CA" },
       { name: "Clovis", state: "CA" },
@@ -95,6 +102,7 @@ export const REGIONS = {
 
   'texas-major-cities': {
     name: 'Texas Major Cities',
+    enabled: false,
     cities: [
       { name: "Houston", state: "TX" },
       { name: "Dallas", state: "TX" },
@@ -110,6 +118,7 @@ export const REGIONS = {
 
   'florida-major-cities': {
     name: 'Florida Major Cities',
+    enabled: false,
     cities: [
       { name: "Miami", state: "FL" },
       { name: "Tampa", state: "FL" },
@@ -124,6 +133,7 @@ export const REGIONS = {
 
   'new-york-area': {
     name: 'New York Area',
+    enabled: false,
     cities: [
       { name: "New York", state: "NY" },
       { name: "Brooklyn", state: "NY" },
@@ -138,6 +148,7 @@ export const REGIONS = {
 
   'washington-area': {
     name: 'Washington State',
+    enabled: false,
     cities: [
       { name: "Seattle", state: "WA" },
       { name: "Spokane", state: "WA" },
@@ -150,6 +161,7 @@ export const REGIONS = {
 
   'arizona-major-cities': {
     name: 'Arizona Major Cities',
+    enabled: false,
     cities: [
       { name: "Phoenix", state: "AZ" },
       { name: "Tucson", state: "AZ" },
@@ -162,6 +174,7 @@ export const REGIONS = {
 
   'colorado-major-cities': {
     name: 'Colorado Major Cities',
+    enabled: false,
     cities: [
       { name: "Denver", state: "CO" },
       { name: "Colorado Springs", state: "CO" },
@@ -173,6 +186,7 @@ export const REGIONS = {
 
   'georgia-major-cities': {
     name: 'Georgia Major Cities',
+    enabled: false,
     cities: [
       { name: "Atlanta", state: "GA" },
       { name: "Augusta", state: "GA" },
@@ -184,6 +198,7 @@ export const REGIONS = {
 
   'nevada-major-cities': {
     name: 'Nevada Major Cities',
+    enabled: false,
     cities: [
       { name: "Las Vegas", state: "NV" },
       { name: "Henderson", state: "NV" },
@@ -194,6 +209,7 @@ export const REGIONS = {
 
   'north-carolina': {
     name: 'North Carolina',
+    enabled: false,
     cities: [
       { name: "Charlotte", state: "NC" },
       { name: "Raleigh", state: "NC" },
@@ -205,6 +221,7 @@ export const REGIONS = {
 
   'missouri': {
     name: 'Missouri',
+    enabled: false,
     cities: [
       { name: "St. Louis", state: "MO" },
       { name: "Kansas City", state: "MO" },
@@ -215,18 +232,10 @@ export const REGIONS = {
   // CANADA REGIONS
   // ========================================
 
-  'canada-ontario': {
-    name: 'Ontario, Canada',
+  'windsor-area': {
+    name: 'Windsor Area',
+    enabled: true,
     cities: [
-      { name: "Toronto", state: "ON" },
-      { name: "Ottawa", state: "ON" },
-      { name: "Mississauga", state: "ON" },
-      { name: "Brampton", state: "ON" },
-      { name: "Hamilton", state: "ON" },
-      { name: "London", state: "ON" },
-      { name: "Markham", state: "ON" },
-      { name: "Vaughan", state: "ON" },
-      { name: "Kitchener", state: "ON" },
       { name: "Windsor", state: "ON" },
       { name: "LaSalle", state: "ON" },
       { name: "Leamington", state: "ON" },
@@ -237,6 +246,22 @@ export const REGIONS = {
       { name: "Kingsville", state: "ON" },
       { name: "Essex", state: "ON" },
       { name: "Tilbury", state: "ON" },
+    ]
+  },
+
+  'canada-ontario': {
+    name: 'Ontario, Canada',
+    enabled: false,
+    cities: [
+      { name: "Toronto", state: "ON" },
+      { name: "Ottawa", state: "ON" },
+      { name: "Mississauga", state: "ON" },
+      { name: "Brampton", state: "ON" },
+      { name: "Hamilton", state: "ON" },
+      { name: "London", state: "ON" },
+      { name: "Markham", state: "ON" },
+      { name: "Vaughan", state: "ON" },
+      { name: "Kitchener", state: "ON" },
       { name: "Richmond Hill", state: "ON" },
       { name: "Oakville", state: "ON" },
       { name: "Burlington", state: "ON" },
@@ -252,6 +277,7 @@ export const REGIONS = {
 
   'canada-british-columbia': {
     name: 'British Columbia, Canada',
+    enabled: false,
     cities: [
       { name: "Vancouver", state: "BC" },
       { name: "Surrey", state: "BC" },
@@ -270,6 +296,7 @@ export const REGIONS = {
 
   'canada-alberta': {
     name: 'Alberta, Canada',
+    enabled: false,
     cities: [
       { name: "Calgary", state: "AB" },
       { name: "Edmonton", state: "AB" },
@@ -284,6 +311,7 @@ export const REGIONS = {
 
   'canada-quebec': {
     name: 'Quebec, Canada',
+    enabled: false,
     cities: [
       { name: "Montreal", state: "QC" },
       { name: "Quebec City", state: "QC" },
@@ -297,6 +325,7 @@ export const REGIONS = {
 
   'canada-prairies': {
     name: 'Canadian Prairies',
+    enabled: false,
     cities: [
       { name: "Winnipeg", state: "MB" },
       { name: "Saskatoon", state: "SK" },
@@ -306,6 +335,7 @@ export const REGIONS = {
 
   'canada-maritimes': {
     name: 'Canadian Maritimes',
+    enabled: false,
     cities: [
       { name: "Halifax", state: "NS" },
       { name: "St. John's", state: "NL" },
@@ -317,12 +347,13 @@ export const REGIONS = {
 };
 
 /**
- * Get all cities across all regions
+ * Get all cities across all enabled regions
  */
 export function getAllCities() {
   const allCities = [];
   for (const regionKey in REGIONS) {
     const region = REGIONS[regionKey];
+    if (region.enabled === false) continue;
     region.cities.forEach(city => {
       allCities.push({
         ...city,
@@ -335,17 +366,19 @@ export function getAllCities() {
 }
 
 /**
- * Get cities for a specific region
+ * Get cities for a specific region (only if enabled)
  */
 export function getCitiesForRegion(regionKey) {
-  return REGIONS[regionKey]?.cities || [];
+  const region = REGIONS[regionKey];
+  if (!region || region.enabled === false) return [];
+  return region.cities;
 }
 
 /**
- * Get all region keys
+ * Get all enabled region keys
  */
 export function getRegionKeys() {
-  return Object.keys(REGIONS);
+  return Object.keys(REGIONS).filter(key => REGIONS[key].enabled !== false);
 }
 
 /**

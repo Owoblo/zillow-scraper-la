@@ -4,6 +4,7 @@
 export const REGIONS = {
   'bay-area': {
     name: 'Bay Area',
+    enabled: false,
     cities: [
       {
         name: "San Francisco",
@@ -50,6 +51,7 @@ export const REGIONS = {
 
   'los-angeles-area': {
     name: 'Los Angeles Area',
+    enabled: false,
     cities: [
       {
         name: "Los Angeles",
@@ -86,6 +88,7 @@ export const REGIONS = {
 
   'windsor-area': {
     name: 'Windsor Area',
+    enabled: true,
     cities: [
       {
         name: "Windsor",
@@ -182,6 +185,7 @@ export const REGIONS = {
 
   'gta-area': {
     name: 'Greater Toronto Area',
+    enabled: false,
     cities: [
       {
         name: "Toronto",
@@ -248,6 +252,7 @@ export const REGIONS = {
 
   'kwg-area': {
     name: 'Kitchener-Waterloo-Guelph Area',
+    enabled: false,
     cities: [
       {
         name: "Kitchener",
@@ -285,9 +290,11 @@ export const REGIONS = {
 };
 
 // Helper functions for working with regions
+// Only returns cities/regions where enabled !== false
 export function getAllCities() {
   const allCities = [];
   Object.entries(REGIONS).forEach(([regionKey, region]) => {
+    if (region.enabled === false) return;
     region.cities.forEach(city => {
       allCities.push({
         ...city,
@@ -300,11 +307,13 @@ export function getAllCities() {
 }
 
 export function getCitiesForRegion(regionKey) {
-  return REGIONS[regionKey]?.cities || [];
+  const region = REGIONS[regionKey];
+  if (!region || region.enabled === false) return [];
+  return region.cities;
 }
 
 export function getRegionKeys() {
-  return Object.keys(REGIONS);
+  return Object.keys(REGIONS).filter(key => REGIONS[key].enabled !== false);
 }
 
 export function getRegionByName(regionName) {
